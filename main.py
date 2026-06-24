@@ -32,7 +32,7 @@ bot.remove_command('help')
 # Track the last time someone ran the -play command globally
 last_play_time = 0
 
-# Simplified question bank mapping keys directly to options
+# Question bank for the quiz
 QUIZ_QUESTIONS = [
     {"question": "What is the capital of France?", "choices": {"A": "London", "B": "Berlin", "C": "Paris", "D": "Madrid"}, "correct": "C"},
     {"question": "Which planet is known as the Red Planet?", "choices": {"A": "Earth", "B": "Mars", "C": "Jupiter", "D": "Venus"}, "correct": "B"},
@@ -161,7 +161,6 @@ async def play(ctx):
 
     quiz = random.choice(QUIZ_QUESTIONS)
     
-    # Render option lines cleanly using the pre-mapped keys
     choices_text = (
         f"**A)** {quiz['choices']['A']}\n"
         f"**B)** {quiz['choices']['B']}\n"
@@ -181,4 +180,19 @@ async def play(ctx):
 # Custom Message Listener
 @bot.event
 async def on_message(message):
-    if
+    if message.author == bot.user:
+        return
+
+    content_lower = message.content.lower()
+    clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
+
+    if "starry" in clean_content:
+        await message.channel.send("Who dares to speak about my master's name?")
+
+    await bot.process_commands(message)
+
+# Run Background Tasks and Launch Bot
+keep_alive()
+
+token = os.getenv("DISCORD_TOKEN")
+bot.run(token)
