@@ -2,9 +2,10 @@ import discord
 from discord.ext import commands
 import random
 import os
+import re  # Added to filter out custom emojis from sentences
 from flask import Flask
 from threading import Thread
-import time as time_module  # Handles the new smart local time command
+import time as time_module  # Handles the smart local time command
 
 # 1. Create a tiny background web server so Railway/Render stays happy
 app = Flask('')
@@ -55,7 +56,7 @@ async def time(ctx):
     # to the local time of whoever is looking at their screen!
     await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
 
-# --- Custom Message Listener ---
+# --- Custom Message Listener (Fixed for Emojis) ---
 @bot.event
 async def on_message(message):
     # Prevent the bot from replying to itself
@@ -65,8 +66,12 @@ async def on_message(message):
     # Convert sentence to lowercase so it catches "Starry", "STARRY", etc.
     content_lower = message.content.lower()
 
-    # Check if the word "starry" is anywhere in the sentence
-    if "starry" in content_lower:
+    # This completely strips out custom Discord emojis (<:name:id> or <a:name:id>)
+    # before checking the sentence text for the trigger word.
+    clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
+
+    # Check if the word "starry" is anywhere in the sentence AFTER removing emojis
+    if "starry" in clean_content:
         await message.channel.send("Who dares to speak about my master's name?")
 
     # CRUCIAL: This allows your normal prefix commands (-ping, -time, etc.) to keep working!
