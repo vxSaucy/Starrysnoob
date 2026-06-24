@@ -32,7 +32,7 @@ bot.remove_command('help')
 # Track the last time someone ran the -play command globally
 last_play_time = 0
 
-# Question bank for the quiz
+# Simplified question bank mapping keys directly to options
 QUIZ_QUESTIONS = [
     {"question": "What is the capital of France?", "choices": {"A": "London", "B": "Berlin", "C": "Paris", "D": "Madrid"}, "correct": "C"},
     {"question": "Which planet is known as the Red Planet?", "choices": {"A": "Earth", "B": "Mars", "C": "Jupiter", "D": "Venus"}, "correct": "B"},
@@ -45,7 +45,7 @@ QUIZ_QUESTIONS = [
     {"question": "What is the freezing point of water?", "choices": {"A": "0°C", "B": "10°C", "C": "50°C", "D": "100°C"}, "correct": "A"},
     {"question": "How many days are there in a normal year?", "choices": {"A": "360", "B": "364", "C": "365", "D": "366"}, "correct": "C"},
     {"question": "What is the color of an emerald?", "choices": {"A": "Blue", "B": "Red", "C": "Yellow", "D": "Green"}, "correct": "D"},
-    {"question": "Which fast food chain features a smiling clown?", "choices": {"A": "Burger King", "B": "Wendy's", "C": "McDonald's", "D": "Subway"}, "correct": "C"},
+    {"question": "Which fast food chain features a smiling clown?", "choices": {"A": "Burger King", "B": "Wendy's", "B": "McDonald's", "D": "Subway"}, "correct": "C"},
     {"question": "What is the hardest natural substance on Earth?", "choices": {"A": "Gold", "B": "Iron", "C": "Diamond", "D": "Stone"}, "correct": "C"},
     {"question": "Which country is home to the kangaroo?", "choices": {"A": "Canada", "B": "Australia", "C": "South Africa", "D": "Brazil"}, "correct": "B"},
     {"question": "How many letters are there in the English alphabet?", "choices": {"A": "24", "B": "25", "C": "26", "D": "27"}, "correct": "C"},
@@ -187,7 +187,13 @@ async def on_message(message):
     clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
 
     if "starry" in clean_content:
-        await message.channel.send("Who dares to speak about my master's name?")
+        starry_responses = [
+            "Who is it that dares cast their tongue upon my master?",
+            "Who amongst you possesses the effrontery to utter my master’s name?",
+            "Who dares breathe a word concerning my liege?",
+            "Who assumes the audacity to speak of my master?"
+        ]
+        await message.channel.send(random.choice(starry_responses))
 
     await bot.process_commands(message)
 
