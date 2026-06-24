@@ -53,7 +53,7 @@ QUIZ_QUESTIONS = [
     {"question": "What is the largest country in the world by land size?", "choices": {"A": "Canada", "B": "USA", "C": "China", "D": "Russia"}, "correct": "D"},
     {"question": "What shape is a stop sign?", "choices": {"A": "Hexagon", "B": "Octagon", "C": "Triangle", "D": "Square"}, "correct": "B"},
     {"question": "Which gaseous element do humans need to breathe to survive?", "choices": {"A": "Nitrogen", "B": "Carbon Dioxide", "C": "Oxygen", "D": "Hydrogen"}, "correct": "C"},
-    {"question": "Who painted the famous 'Mona Lisa'?", "choices": {"A": "Vincent van Gogh", "B": "Leonardo da Vinci", "C": "Pablo Picasso", "D": "Claude Monet"}, "correct": "B"},
+    {"who painted the famous 'Mona Lisa'?": "Vincent van Gogh", "choices": {"A": "Vincent van Gogh", "B": "Leonardo da Vinci", "C": "Pablo Picasso", "D": "Claude Monet"}, "correct": "B"},
     {"question": "In Minecraft, what do you feed a wolf to tame it?", "choices": {"A": "Fish", "B": "Raw Porkchop", "C": "Bone", "D": "Apple"}, "correct": "C"},
     {"question": "Which game popularised the phrase 'Where we droppin' boys?'", "choices": {"A": "PUBG Mobile", "B": "Fortnite", "C": "Apex Legends", "D": "Call of Duty"}, "correct": "B"},
     {"question": "What is the name of the classic, default map in PUBG?", "choices": {"A": "Sanhok", "B": "Miramar", "C": "Livik", "D": "Erangel"}, "correct": "D"},
@@ -139,6 +139,12 @@ async def eight_ball(ctx, *, question: str):
     responses = ["It is certain.", "Reply hazy, try again.", "Don't count on it.", "Without a doubt.", "My sources say no.", "Yes definitely."]
     await ctx.send(f"🔮 **Question:** {question}\n**Answer:** {random.choice(responses)}")
 
+# Error handler for 8ball command to catch missing questions smoothly
+@eight_ball.error
+async def eight_ball_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("🔮 **Please ask a question!** Example: `-8ball Is this bot awesome?`")
+
 @bot.command()
 async def roll(ctx, sides: int = 6):
     await ctx.send(f"🎲 You rolled a **{random.randint(1, sides)}**!")
@@ -157,7 +163,7 @@ async def help(ctx):
         color=0xFFD700
     )
     
-    # Prefix Commands Section (Double line breaks added)
+    # Prefix Commands Section
     embed.add_field(name="⚙️ Prefix Commands", value=(
         "`-help` ➜ Shows this helpful configuration list.\n\n"
         "`-play` ➜ Launches a 4-option trivia mini-game (15s cooldown).\n\n"
@@ -167,7 +173,7 @@ async def help(ctx):
         "`-8ball [question]` ➜ Ask a question and receive a mystery prediction."
     ), inline=False)
     
-    # Chat Trigger Words Section (Double line breaks added)
+    # Chat Trigger Words Section
     embed.add_field(name="💬 Chat Trigger Words (No Prefix)", value=(
         "🗣️ Mention **\"starry\"** ➜ Custom master protective responses.\n\n"
         "❤️ Say **\"starry hates me\"** ➜ Bot replies: *\"No he doesn't\"*\n\n"
