@@ -212,13 +212,18 @@ async def on_message(message):
         return
 
     content_lower = message.content.lower()
+    # Note: Regex allows the bot to process text even if it has emojis inside it
     clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
 
-    # Specific phrase configurations
+    # Trigger configurations
     if "starry hates me" in clean_content:
         await message.channel.send("No he doesn't")
     elif "you hate me" in clean_content:
         await message.channel.send("No I don't")
+    # New "cute" trigger sentence handling
+    elif "cute" in clean_content:
+        # REPLACE THE STRING BELOW with your actual Discord emoji text code
+        await message.channel.send("<:Cutestarry:1519415152191995935>")
     # General master mention check
     elif "starry" in clean_content:
         starry_responses = [
