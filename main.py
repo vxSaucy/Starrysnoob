@@ -28,6 +28,9 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="-", intents=intents)
 
+# --- REMOVE DEFAULT HELP COMMAND TO USE OUR CUSTOM EMBED ---
+bot.remove_command('help')
+
 # Track the last time someone ran the -play command for a global cooldown
 last_play_time = 0
 
@@ -46,7 +49,7 @@ QUIZ_QUESTIONS = [
     {"question": "What is the color of an emerald?", "choices": ["Blue", "Red", "Yellow", "Green"], "correct": "Green"},
     {"question": "Which fast food chain features a smiling clown?", "choices": ["Burger King", "Wendy's", "McDonald's", "Subway"], "correct": "McDonald's"},
     {"question": "What is the hardest natural substance on Earth?", "choices": ["Gold", "Iron", "Diamond", "Stone"], "correct": "Diamond"},
-    {"question": "Which country is home to the kangaroo?", "choices": ["Canada", "Australia", "South Africa", "Brazil"], "correct": "Australia"},
+    {"country": "Which country is home to the kangaroo?", "choices": ["Canada", "Australia", "South Africa", "Brazil"], "correct": "Australia"},
     {"question": "How many letters are there in the English alphabet?", "choices": ["24", "25", "26", "27"], "correct": "26"},
     {"question": "Which fruit is traditionally given to teachers?", "choices": ["Banana", "Apple", "Orange", "Grape"], "correct": "Apple"},
     {"question": "What is the largest country in the world by land size?", "choices": ["Canada", "USA", "China", "Russia"], "correct": "Russia"},
@@ -55,43 +58,38 @@ QUIZ_QUESTIONS = [
     {"question": "Who painted the famous 'Mona Lisa'?", "choices": ["Vincent van Gogh", "Leonardo da Vinci", "Pablo Picasso", "Claude Monet"], "correct": "Leonardo da Vinci"}
 ]
 
-# --- INTERACTIVE BUTTON VIEW CLASS ---
+# --- INTERACTIVE BUTTON VIEW CLASS FOR QUIZ ---
 class QuizView(discord.ui.View):
     def __init__(self, correct_answer, original_author):
-        super().__init__(timeout=15.0)  # Deactivates buttons after 15 seconds
+        super().__init__(timeout=15.0)
         self.correct_answer = correct_answer
         self.original_author = original_author
         self.message = None
 
-        # Dynamically build a button for each multiple choice item
         for label in ["A", "B", "C", "D"]:
             button = discord.ui.Button(label=label, style=discord.ButtonStyle.blurple, custom_id=label)
             button.callback = self.button_callback
             self.add_item(button)
 
     async def button_callback(self, interaction: discord.Interaction):
-        # Optional: Restrict clicking so only the user who typed '-play' can submit
         if interaction.user != self.original_author:
             await interaction.response.send_message("This isn't your game session, partner! 🤠", ephemeral=True)
             return
 
         selected_choice = interaction.data["custom_id"]
         
-        # Turn off all buttons once clicked so players can't spam options
         for child in self.children:
             child.disabled = True
         await self.message.edit(view=self)
 
-        # Evaluate answer strings
         if selected_choice == self.correct_answer:
-            await interaction.response.send_message(f"✨ That was the correct answer, {interaction.user.mention}! Thank you for playing")
+            await interaction.response.send_message(f"🎉 Correct, {interaction.user.mention}! You nailed it!")
         else:
-            await interaction.response.send_message(f"😳 Whoops! looks like you picked the wrong answer, {interaction.user.mention}! The correct answer was choice **{self.correct_answer}**.")
+            await interaction.response.send_message(f"❌ Incorrect, {interaction.user.mention}! The correct answer was choice **{self.correct_answer}**.")
         
         self.stop()
 
     async def on_timeout(self):
-        # Gray out all options if time completely expires
         for child in self.children:
             child.disabled = True
         if self.message:
@@ -112,74 +110,4 @@ async def ping(ctx):
 
 @bot.command(name="8ball")
 async def eight_ball(ctx, *, question: str):
-    responses = ["It is certain.", "Reply hazy, try again.", "Don't count on it.", "Without a doubt.", "My sources say no.", "Yes definitely."]
-    await ctx.send(f"🔮 **Question:** {question}\n**Answer:** {random.choice(responses)}")
-
-@bot.command()
-async def roll(ctx, sides: int = 6):
-    await ctx.send(f"🎲 You rolled a **{random.randint(1, sides)}**!")
-
-@bot.command()
-async def time(ctx):
-    current_timestamp = int(time_module.time())
-    await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
-
-# --- PLAYFUL QUIZ COMMAND WITH INTERACTIVE BUTTONS ---
-@bot.command()
-async def play(ctx):
-    global last_play_time
-    current_time = time_module.time()
-    
-    # Global Cooldown Validation
-    if current_time - last_play_time < 15:
-        cooldown_embed = discord.Embed(
-            title="🤠 Whoa there!",
-            description="Hold your horses partner, let me cool down a bit.",
-            color=discord.Color.orange()
-        )
-        await ctx.send(embed=cooldown_embed)
-        return
-
-    last_play_time = current_time
-
-    # Setup the data structure
-    quiz = random.choice(QUIZ_QUESTIONS)
-    prefixes = ["A", "B", "C", "D"]
-    
-    # Map raw options cleanly to letter headers
-    formatted_choices = [f"**{prefixes[i]}** - {quiz['choices'][i]}" for i in range(4)]
-    choices_text = "\n".join(formatted_choices)
-    
-    # Locate where the correct string lies to assign the answer key
-    correct_index = quiz["choices"].index(quiz["correct"])
-    correct_letter = prefixes[correct_index]
-
-    embed = discord.Embed(
-        title="🧠 Trivia Time!",
-        description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Click your answer choice below within 15 seconds!*",
-        color=discord.Color.blue()
-    )
-
-    # Attach our button system view to the embed delivery channel
-    view = QuizView(correct_answer=correct_letter, original_author=ctx.author)
-    view.message = await ctx.send(embed=embed, view=view)
-
-# --- Custom Message Listener ---
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-
-    content_lower = message.content.lower()
-    clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
-
-    if "starry" in clean_content:
-        await message.channel.send("Who dares to speak about my master's name?")
-
-    await bot.process_commands(message)
-
-# Start the web server right before launching the bot
-keep_alive()
-
-token = os.getenv("DISCORD_TOKEN")
-bot.run(token)
+    responses =
