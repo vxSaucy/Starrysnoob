@@ -4,7 +4,7 @@ import random
 import os
 from flask import Flask
 from threading import Thread
-from datetime import datetime  # Added to handle the time command
+import time as time_module  # Handles the new smart local time command
 
 # 1. Create a tiny background web server so Railway/Render stays happy
 app = Flask('')
@@ -45,12 +45,15 @@ async def eight_ball(ctx, *, question: str):
 async def roll(ctx, sides: int = 6):
     await ctx.send(f"🎲 You rolled a **{random.randint(1, sides)}**!")
 
-# --- NEW TIME COMMAND ---
+# --- NEW DYNAMIC TIME COMMAND ---
 @bot.command()
 async def time(ctx):
-    # Gets the current local time of the hosting server
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    await ctx.send(f"⏰ **Current Host Time:** `{current_time}`")
+    # Get the current universal Unix timestamp
+    current_timestamp = int(time_module.time())
+    
+    # Sending it in this format tells Discord to translate it 
+    # to the local time of whoever is looking at their screen!
+    await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
 
 # --- Custom Message Listener ---
 @bot.event
@@ -64,7 +67,7 @@ async def on_message(message):
 
     # Check if the word "starry" is anywhere in the sentence
     if "starry" in content_lower:
-        await message.channel.send("Who dares speaks about my master's name")
+        await message.channel.send("Who dares to speak about my master's name?")
 
     # CRUCIAL: This allows your normal prefix commands (-ping, -time, etc.) to keep working!
     await bot.process_commands(message)
