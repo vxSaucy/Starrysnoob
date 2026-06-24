@@ -32,28 +32,28 @@ bot.remove_command('help')
 # Track the last time someone ran the -play command globally
 last_play_time = 0
 
-# Cleaned up question bank for the quiz
+# Simplified question bank mapping keys directly to options
 QUIZ_QUESTIONS = [
-    {"question": "What is the capital of France?", "choices": ["London", "Berlin", "Paris", "Madrid"], "correct": "Paris"},
-    {"question": "Which planet is known as the Red Planet?", "choices": ["Earth", "Mars", "Jupiter", "Venus"], "correct": "Mars"},
-    {"question": "What is the largest ocean on Earth?", "choices": ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"], "correct": "Pacific Ocean"},
-    {"question": "How many colors are there in a rainbow?", "choices": ["6", "7", "8", "9"], "correct": "7"},
-    {"question": "What sweet food do bees make?", "choices": ["Sugar", "Honey", "Syrup", "Chocolate"], "correct": "Honey"},
-    {"question": "Which animal is known as the 'Ship of the Desert'?", "choices": ["Horse", "Camel", "Elephant", "Donkey"], "correct": "Camel"},
-    {"question": "How many legs does a spider have?", "choices": ["6", "8", "10", "12"], "correct": "8"},
-    {"question": "Which is the tallest animal on Earth?", "choices": ["Elephant", "Giraffe", "Dinosaur", "Ostrich"], "correct": "Giraffe"},
-    {"question": "What is the freezing point of water?", "choices": ["0°C", "10°C", "50°C", "100°C"], "correct": "0°C"},
-    {"question": "How many days are there in a normal year?", "choices": ["360", "364", "365", "366"], "correct": "365"},
-    {"question": "What is the color of an emerald?", "choices": ["Blue", "Red", "Yellow", "Green"], "correct": "Green"},
-    {"question": "Which fast food chain features a smiling clown?", "choices": ["Burger King", "Wendy's", "McDonald's", "Subway"], "correct": "McDonald's"},
-    {"question": "What is the hardest natural substance on Earth?", "choices": ["Gold", "Iron", "Diamond", "Stone"], "correct": "Diamond"},
-    {"question": "Which country is home to the kangaroo?", "choices": ["Canada", "Australia", "South Africa", "Brazil"], "correct": "Australia"},
-    {"question": "How many letters are there in the English alphabet?", "choices": ["24", "25", "26", "27"], "correct": "26"},
-    {"question": "Which fruit is traditionally given to teachers?", "choices": ["Banana", "Apple", "Orange", "Grape"], "correct": "Apple"},
-    {"question": "What is the largest country in the world by land size?", "choices": ["Canada", "USA", "China", "Russia"], "correct": "Russia"},
-    {"question": "What shape is a stop sign?", "choices": ["Hexagon", "Octagon", "Triangle", "Square"], "correct": "Octagon"},
-    {"question": "Which gaseous element do humans need to breathe to survive?", "choices": ["Nitrogen", "Carbon Dioxide", "Oxygen", "Hydrogen"], "correct": "Oxygen"},
-    {"question": "Who painted the famous 'Mona Lisa'?", "choices": ["Vincent van Gogh", "Leonardo da Vinci", "Pablo Picasso", "Claude Monet"], "correct": "Leonardo da Vinci"}
+    {"question": "What is the capital of France?", "choices": {"A": "London", "B": "Berlin", "C": "Paris", "D": "Madrid"}, "correct": "C"},
+    {"question": "Which planet is known as the Red Planet?", "choices": {"A": "Earth", "B": "Mars", "C": "Jupiter", "D": "Venus"}, "correct": "B"},
+    {"question": "What is the largest ocean on Earth?", "choices": {"A": "Atlantic Ocean", "B": "Indian Ocean", "C": "Arctic Ocean", "D": "Pacific Ocean"}, "correct": "D"},
+    {"question": "How many colors are there in a rainbow?", "choices": {"A": "6", "B": "7", "C": "8", "D": "9"}, "correct": "B"},
+    {"question": "What sweet food do bees make?", "choices": {"A": "Sugar", "B": "Honey", "C": "Syrup", "D": "Chocolate"}, "correct": "B"},
+    {"question": "Which animal is known as the 'Ship of the Desert'?", "choices": {"A": "Horse", "B": "Camel", "C": "Elephant", "D": "Donkey"}, "correct": "B"},
+    {"question": "How many legs does a spider have?", "choices": {"A": "6", "B": "8", "C": "10", "D": "12"}, "correct": "B"},
+    {"question": "Which is the tallest animal on Earth?", "choices": {"A": "Elephant", "B": "Giraffe", "C": "Dinosaur", "D": "Ostrich"}, "correct": "B"},
+    {"question": "What is the freezing point of water?", "choices": {"A": "0°C", "B": "10°C", "C": "50°C", "D": "100°C"}, "correct": "A"},
+    {"question": "How many days are there in a normal year?", "choices": {"A": "360", "B": "364", "C": "365", "D": "366"}, "correct": "C"},
+    {"question": "What is the color of an emerald?", "choices": {"A": "Blue", "B": "Red", "C": "Yellow", "D": "Green"}, "correct": "D"},
+    {"question": "Which fast food chain features a smiling clown?", "choices": {"A": "Burger King", "B": "Wendy's", "C": "McDonald's", "D": "Subway"}, "correct": "C"},
+    {"question": "What is the hardest natural substance on Earth?", "choices": {"A": "Gold", "B": "Iron", "C": "Diamond", "D": "Stone"}, "correct": "C"},
+    {"question": "Which country is home to the kangaroo?", "choices": {"A": "Canada", "B": "Australia", "C": "South Africa", "D": "Brazil"}, "correct": "B"},
+    {"question": "How many letters are there in the English alphabet?", "choices": {"A": "24", "B": "25", "C": "26", "D": "27"}, "correct": "C"},
+    {"question": "Which fruit is traditionally given to teachers?", "choices": {"A": "Banana", "B": "Apple", "C": "Orange", "D": "Grape"}, "correct": "B"},
+    {"question": "What is the largest country in the world by land size?", "choices": {"A": "Canada", "B": "USA", "C": "China", "D": "Russia"}, "correct": "D"},
+    {"question": "What shape is a stop sign?", "choices": {"A": "Hexagon", "B": "Octagon", "C": "Triangle", "D": "Square"}, "correct": "B"},
+    {"question": "Which gaseous element do humans need to breathe to survive?", "choices": {"A": "Nitrogen", "B": "Carbon Dioxide", "C": "Oxygen", "D": "Hydrogen"}, "correct": "C"},
+    {"question": "Who painted the famous 'Mona Lisa'?", "choices": {"A": "Vincent van Gogh", "B": "Leonardo da Vinci", "C": "Pablo Picasso", "D": "Claude Monet"}, "correct": "B"}
 ]
 
 # Button View Class for the Quiz
@@ -160,9 +160,25 @@ async def play(ctx):
     last_play_time = current_time
 
     quiz = random.choice(QUIZ_QUESTIONS)
-    prefixes = ["A", "B", "C", "D"]
     
-    formatted_choices = [f"**{prefixes[i]}** - {quiz['choices'][i]}" for i in range(4)]
-    choices_text = "\n".join(formatted_choices)
-    
-    correct_index =
+    # Render option lines cleanly using the pre-mapped keys
+    choices_text = (
+        f"**A)** {quiz['choices']['A']}\n"
+        f"**B)** {quiz['choices']['B']}\n"
+        f"**C)** {quiz['choices']['C']}\n"
+        f"**D)** {quiz['choices']['D']}"
+    )
+
+    embed = discord.Embed(
+        title="🧠 Trivia Time!",
+        description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Click your answer choice below within 15 seconds!*",
+        color=discord.Color.blue()
+    )
+
+    view = QuizView(correct_answer=quiz['correct'], original_author=ctx.author)
+    view.message = await ctx.send(embed=embed, view=view)
+
+# Custom Message Listener
+@bot.event
+async def on_message(message):
+    if
