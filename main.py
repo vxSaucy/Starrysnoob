@@ -8,7 +8,7 @@ from flask import Flask
 from threading import Thread
 import time as time_module
 
-# 1. Create a tiny background web server so Railway/Render stays happy
+# 1. Create a tiny background web server so Railway stays happy
 app = Flask('')
 
 @app.route('/')
@@ -22,11 +22,14 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# 2. Your actual Bot Code
+# 2. Your Actual Bot Code
 intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="-", intents=intents)
+
+# Track the last time someone ran the -play command for a global cooldown
+last_play_time = 0
 
 # Expanded question bank for the -play command (20 total questions)
 QUIZ_QUESTIONS = [
@@ -75,10 +78,26 @@ async def time(ctx):
     current_timestamp = int(time_module.time())
     await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
 
-# --- PLAYFUL QUIZ COMMAND WITH COOLDOWN ---
+# --- PLAYFUL QUIZ COMMAND ---
 @bot.command()
-@commands.cooldown(1, 15, commands.BucketType.global)
 async def play(ctx):
+    global last_play_time
+    current_time = time_module.time()
+    
+    # Check if 15 seconds have passed since the last use globally
+    if current_time - last_play_time < 15:
+        cooldown_embed = discord.Embed(
+            title="🤠 Whoa there!",
+            description="Hold your horses partner, let me cool down a bit.",
+            color=discord.Color.orange()
+        )
+        await ctx.send(embed=cooldown_embed)
+        return
+
+    # Update the tracking timestamp to the current run time
+    last_play_time = current_time
+
+    # Run the trivia logic
     quiz = random.choice(QUIZ_QUESTIONS)
     choices_text = "\n".join(quiz["choices"])
     
@@ -86,3 +105,39 @@ async def play(ctx):
         title="🧠 Trivia Time!",
         description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Type your answer (A, B, C, or D) in chat within 15 seconds!*",
         color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed)
+
+    def check(m):
+        return m.channel == ctx.channel and not m.author.bot and m.content.upper() in ["A", "B", "C", "D"]
+
+    try:
+        msg = await bot.wait_for('message', check=check, timeout=15.0)
+        
+        if msg.content.upper() == quiz["correct"]:
+            await ctx.send(f"🎉 Correct, {msg.author.mention}! You nailed it!")
+        else:
+            await ctx.send(f"❌ Incorrect, {msg.author.mention}! The correct answer was **{quiz['correct']}**.")
+            
+    except asyncio.TimeoutError:
+        await ctx.send("⏰ Time's up! Nobody answered in time.")
+
+# --- Custom Message Listener ---
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+
+    content_lower = message.content.lower()
+    clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
+
+    if "starry" in clean_content:
+        await message.channel.send("Who dares to speak about my master's name?")
+
+    await bot.process_commands(message)
+
+# Start the web server right before launching the bot
+keep_alive()
+
+token = os.getenv("DISCORD_TOKEN")
+bot.run(token)
