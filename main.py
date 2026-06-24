@@ -3,7 +3,7 @@ from discord.ext import commands
 import random
 import os
 import re
-import asyncio  # Added to handle the quiz answer timer
+import asyncio
 from flask import Flask
 from threading import Thread
 import time as time_module
@@ -79,60 +79,10 @@ async def time(ctx):
 @bot.command()
 @commands.cooldown(1, 15, commands.BucketType.global)
 async def play(ctx):
-    # Pick a random question from our expanded list
     quiz = random.choice(QUIZ_QUESTIONS)
-    
     choices_text = "\n".join(quiz["choices"])
     
     embed = discord.Embed(
         title="🧠 Trivia Time!",
         description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Type your answer (A, B, C, or D) in chat within 15 seconds!*",
         color=discord.Color.blue()
-    )
-    await ctx.send(embed=embed)
-
-    def check(m):
-        return m.channel == ctx.channel and not m.author.bot and m.content.upper() in ["A", "B", "C", "D"]
-
-    try:
-        msg = await bot.wait_for('message', check=check, timeout=15.0)
-        
-        if msg.content.upper() == quiz["correct"]:
-            await ctx.send(f"🎉 Correct, {msg.author.mention}! You nailed it!")
-        else:
-            await ctx.send(f"❌ Incorrect, {msg.author.mention}! The correct answer was **{quiz['correct']}**.")
-            
-    except asyncio.TimeoutError:
-        await ctx.send("⏰ Time's up! Nobody answered in time.")
-
-@play.error
-async def play_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        cooldown_embed = discord.Embed(
-            title="🤠 Whoa there!",
-            description="Hold your horses partner, let me cool down a bit.",
-            color=discord.Color.orange()
-        )
-        await ctx.send(embed=cooldown_embed)
-    else:
-        raise error
-
-# --- Custom Message Listener ---
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-
-    content_lower = message.content.lower()
-    clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
-
-    if "starry" in clean_content:
-        await message.channel.send("Who dares to speak about my master's name?")
-
-    await bot.process_commands(message)
-
-# Start the web server right before launching the bot
-keep_alive()
-
-token = os.getenv("DISCORD_TOKEN")
-bot.run(token)
