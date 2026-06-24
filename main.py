@@ -84,9 +84,9 @@ class QuizView(discord.ui.View):
 
         # Evaluate answer strings
         if selected_choice == self.correct_answer:
-            await interaction.response.send_message(f" <:starryslove:1503966901838155836> That was the correct answer, {interaction.user.mention}! Thank you for playing")
+            await interaction.response.send_message(f"✨ That was the correct answer, {interaction.user.mention}! Thank you for playing")
         else:
-            await interaction.response.send_message(f" <a:x_R8:1188481935773814884> Whoops! looks like you picked the wrong answer, {interaction.user.mention}! The correct answer was choice **{self.correct_answer}**.")
+            await interaction.response.send_message(f"😳 Whoops! looks like you picked the wrong answer, {interaction.user.mention}! The correct answer was choice **{self.correct_answer}**.")
         
         self.stop()
 
