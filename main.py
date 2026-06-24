@@ -105,7 +105,7 @@ async def on_ready():
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.listening, 
-            name="prefix (-help)"
+            name="prefix commands (-help) 🎧"
         )
     )
 
@@ -194,7 +194,11 @@ async def on_message(message):
     content_lower = message.content.lower()
     clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
 
-    if "starry" in clean_content:
+    # Specific phrase check takes priority
+    if "starry hates me" in clean_content:
+        await message.channel.send("No he doesn't")
+    # General mention check
+    elif "starry" in clean_content:
         starry_responses = [
             "Who is it that dares cast their tongue upon my master?",
             "Who amongst you possesses the effrontery to utter my master’s name?",
