@@ -120,16 +120,10 @@ class QuizView(discord.ui.View):
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
-    
-    # Rich Presence configuration (Listening Status)
-    await bot.change_presence(
-        activity=discord.Activity(
-            type=discord.ActivityType.listening, 
-            name="prefix commands (-help) 🎧"
-        )
-    )
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="prefix commands (-help) 🎧"))
 
-# Standard Prefix Commands
+# --- Commands ---
+
 @bot.command()
 async def ping(ctx):
     await ctx.send("🏓 Pong!")
@@ -139,7 +133,6 @@ async def eight_ball(ctx, *, question: str):
     responses = ["It is certain.", "Reply hazy, try again.", "Don't count on it.", "Without a doubt.", "My sources say no.", "Yes definitely."]
     await ctx.send(f"🔮 **Question:** {question}\n**Answer:** {random.choice(responses)}")
 
-# Error handler for 8ball command to catch missing questions smoothly
 @eight_ball.error
 async def eight_ball_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -154,84 +147,58 @@ async def time(ctx):
     current_timestamp = int(time_module.time())
     await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
 
-# Custom Help Command Embed (With added spacing for clean look)
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def delete(ctx, amount: int):
+    deleted = await ctx.channel.purge(limit=amount + 1)
+    await ctx.send(f"🧹 Cleaned up {len(deleted)-1} messages!", delete_after=5)
+
+@delete.error
+async def delete_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You don't have permission to manage messages, partner!")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("🔢 Please specify how many messages to delete! Example: `-delete 5`")
+
 @bot.command()
 async def help(ctx):
-    embed = discord.Embed(
-        title="🤖 Starry's N00b — Command Menu",
-        description="Here is a full layout of my configuration! Active prefixes use `-`, while text triggers respond dynamically in regular chat.",
-        color=0xFFD700
-    )
-    
-    # Prefix Commands Section
+    embed = discord.Embed(title="🤖 Starry's N00b — Command Menu", description="Active prefixes use `-`, text triggers respond dynamically in chat.", color=0xFFD700)
     embed.add_field(name="⚙️ Prefix Commands", value=(
-        "`-help` ➜ Shows this helpful configuration list.\n\n"
-        "`-play` ➜ Launches a 4-option trivia mini-game (15s cooldown).\n\n"
-        "`-time` ➜ Displays the current time adjusted directly to your device.\n\n"
-        "`-ping` ➜ Tests bot responsiveness with latency calculation.\n\n"
-        "`-roll [sides]` ➜ Rolls a dice. Defaults to 6 sides.\n\n"
-        "`-8ball [question]` ➜ Ask a question and receive a mystery prediction."
+        "`-help` ➜ Shows this list.\n\n"
+        "`-play` ➜ Trivia game.\n\n"
+        "`-time` ➜ Local time.\n\n"
+        "`-ping` ➜ Latency test.\n\n"
+        "`-roll [sides]` ➜ Dice roll.\n\n"
+        "`-8ball [question]` ➜ Prediction.\n\n"
+        "`-delete [#]` ➜ Bulk delete messages."
     ), inline=False)
     
-    # Chat Trigger Words Section
-    embed.add_field(name="💬 Chat Trigger Words (No Prefix)", value=(
-        "🗣️ Mention **\"starry\"** ➜ Custom master protective responses.\n\n"
-        "❤️ Say **\"starry hates me\"** ➜ Bot replies: *\"No he doesn't\"*\n\n"
-        "🛡️ Say **\"you hate me\"** ➜ Bot replies: *\"No I don't\"*\n\n"
-        "✨ Say **\"cute\"** ➜ Bot replies with your custom creature emoji.\n\n"
-        "🌈 Say **\"gay\"** ➜ Bot replies: *\"Yes, indeed Starry is gay\"*"
+    embed.add_field(name="💬 Chat Triggers", value=(
+        "🗣️ Mention **\"starry\"** ➜ Master response.\n\n"
+        "❤️ Say **\"starry hates me\"** ➜ Bot replies.\n\n"
+        "✨ Say **\"cute\"** ➜ Custom emoji.\n\n"
+        "🌈 Say **\"gay\"** ➜ Bot replies."
     ), inline=False)
-    
-    if bot.user.avatar:
-        embed.set_footer(text="Built with ❤️ for Starry's server", icon_url=bot.user.avatar.url)
-    else:
-        embed.set_footer(text="Built with ❤️ for Starry's server")
-        
     await ctx.send(embed=embed)
 
-# Quiz Command
 @bot.command()
 async def play(ctx):
     global last_play_time
     current_time = time_module.time()
-    
     if current_time - last_play_time < 15:
-        cooldown_embed = discord.Embed(
-            title="🤠 Whoa there!",
-            description="Hold your horses partner, let me cool down a bit.",
-            color=discord.Color.orange()
-        )
-        await ctx.send(embed=cooldown_embed)
+        await ctx.send(embed=discord.Embed(title="🤠 Whoa there!", description="Hold your horses, let me cool down.", color=discord.Color.orange()))
         return
-
     last_play_time = current_time
-
     quiz = random.choice(QUIZ_QUESTIONS)
-    
-    choices_text = (
-        f"**A)** {quiz['choices']['A']}\n"
-        f"**B)** {quiz['choices']['B']}\n"
-        f"**C)** {quiz['choices']['C']}\n"
-        f"**D)** {quiz['choices']['D']}"
-    )
-
-    embed = discord.Embed(
-        title="🧠 Trivia Time!",
-        description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Click your answer choice below within 15 seconds!*",
-        color=0xFFD700
-    )
-
     view = QuizView(correct_answer=quiz['correct'], original_author=ctx.author)
-    view.message = await ctx.send(embed=embed, view=view)
+    view.message = await ctx.send(embed=discord.Embed(title="🧠 Trivia Time!", description=f"**{quiz['question']}**\n\n*Click your answer choice below within 15 seconds!*", color=0xFFD700), view=view)
 
-# Custom Message Listener
+# --- Event Listeners ---
+
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
-
-    # CRITICAL FIX: If the message starts with the command prefix, 
-    # process the command immediately and SKIP checking any regular text triggers.
     if message.content.startswith("-"):
         await bot.process_commands(message)
         return
@@ -239,30 +206,19 @@ async def on_message(message):
     content_lower = message.content.lower()
     clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
 
-    # Trigger configurations
     if "starry hates me" in clean_content:
         await message.channel.send("No he doesn't")
     elif "you hate me" in clean_content:
         await message.channel.send("No I don't")
     elif "cute" in clean_content:
-        # REPLACE THE STRING BELOW with your actual Discord emoji text code
         await message.channel.send("<:emojiname:123456789012345678>")
     elif "gay" in clean_content:
         await message.channel.send("Yes, indeed Starry is gay")
-    # General master mention check
     elif "starry" in clean_content:
-        starry_responses = [
-            "Who is it that dares cast their tongue upon my master?",
-            "Who amongst you possesses the effrontery to utter my master’s name?",
-            "Who dares breathe a word concerning my liege?",
-            "Who assumes the audacity to speak of my master?"
-        ]
-        await message.channel.send(random.choice(starry_responses))
+        await message.channel.send(random.choice(["Who is it that dares cast their tongue upon my master?", "Who amongst you possesses the effrontery to utter my master’s name?", "Who dares breathe a word concerning my liege?"]))
 
     await bot.process_commands(message)
 
-# Run Background Tasks and Launch Bot
 keep_alive()
-
 token = os.getenv("DISCORD_TOKEN")
 bot.run(token)
