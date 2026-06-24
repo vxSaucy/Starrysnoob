@@ -150,15 +150,19 @@ async def time(ctx):
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def delete(ctx, amount):
+    # This filter tells the bot to only delete messages that are NOT pinned
+    def is_not_pinned(m):
+        return not m.pinned
+
     if amount.lower() == 'all':
-        # Deletes up to 1000 messages
-        deleted = await ctx.channel.purge(limit=1000)
-        await ctx.send(f"🧹 Nuked {len(deleted)-1} messages!", delete_after=5)
+        # The 'check' parameter skips any message where is_not_pinned returns False
+        deleted = await ctx.channel.purge(limit=1000, check=is_not_pinned)
+        await ctx.send(f"🧹 Nuked {len(deleted)-1} messages (pinned messages were kept safe!)", delete_after=5)
     else:
         try:
             num = int(amount)
-            deleted = await ctx.channel.purge(limit=num + 1)
-            await ctx.send(f"🧹 Cleaned up {len(deleted)-1} messages!", delete_after=5)
+            deleted = await ctx.channel.purge(limit=num + 1, check=is_not_pinned)
+            await ctx.send(f"🧹 Cleaned up {len(deleted)-1} messages (skipped pins).", delete_after=5)
         except ValueError:
             await ctx.send("❌ Please provide a valid number or use `-delete all`.")
 
