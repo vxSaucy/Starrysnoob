@@ -4,6 +4,7 @@ import random
 import os
 from flask import Flask
 from threading import Thread
+from datetime import datetime  # Added to handle the time command
 
 # 1. Create a tiny background web server so Railway/Render stays happy
 app = Flask('')
@@ -23,7 +24,8 @@ def keep_alive():
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+# --- PREFIX SET TO "-" HERE ---
+bot = commands.Bot(command_prefix="-", intents=intents)
 
 @bot.event
 async def on_ready():
@@ -43,6 +45,13 @@ async def eight_ball(ctx, *, question: str):
 async def roll(ctx, sides: int = 6):
     await ctx.send(f"🎲 You rolled a **{random.randint(1, sides)}**!")
 
+# --- NEW TIME COMMAND ---
+@bot.command()
+async def time(ctx):
+    # Gets the current local time of the hosting server
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    await ctx.send(f"⏰ **Current Host Time:** `{current_time}`")
+
 # --- Custom Message Listener ---
 @bot.event
 async def on_message(message):
@@ -57,7 +66,7 @@ async def on_message(message):
     if "starry" in content_lower:
         await message.channel.send("Who dares speaks about my master's name")
 
-    # CRUCIAL: This allows your normal prefix commands (!ping, !roll, etc.) to keep working!
+    # CRUCIAL: This allows your normal prefix commands (-ping, -time, etc.) to keep working!
     await bot.process_commands(message)
 
 # Start the web server right before launching the bot
