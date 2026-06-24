@@ -149,16 +149,25 @@ async def time(ctx):
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def delete(ctx, amount: int):
-    deleted = await ctx.channel.purge(limit=amount + 1)
-    await ctx.send(f"🧹 Cleaned up {len(deleted)-1} messages!", delete_after=5)
+async def delete(ctx, amount):
+    if amount.lower() == 'all':
+        # Deletes up to 1000 messages
+        deleted = await ctx.channel.purge(limit=1000)
+        await ctx.send(f"🧹 Nuked {len(deleted)-1} messages!", delete_after=5)
+    else:
+        try:
+            num = int(amount)
+            deleted = await ctx.channel.purge(limit=num + 1)
+            await ctx.send(f"🧹 Cleaned up {len(deleted)-1} messages!", delete_after=5)
+        except ValueError:
+            await ctx.send("❌ Please provide a valid number or use `-delete all`.")
 
 @delete.error
 async def delete_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("❌ You don't have permission to manage messages, partner!")
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("🔢 Please specify how many messages to delete! Example: `-delete 5`")
+        await ctx.send("🔢 Please specify how many messages to delete! Example: `-delete 5` or `-delete all`.")
 
 @bot.command()
 async def help(ctx):
@@ -170,7 +179,7 @@ async def help(ctx):
         "`-ping` ➜ Latency test.\n\n"
         "`-roll [sides]` ➜ Dice roll.\n\n"
         "`-8ball [question]` ➜ Prediction.\n\n"
-        "`-delete [#]` ➜ Bulk delete messages."
+        "`-delete [#/all]` ➜ Bulk delete messages."
     ), inline=False)
     
     embed.add_field(name="💬 Chat Triggers", value=(
