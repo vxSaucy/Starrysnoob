@@ -32,7 +32,7 @@ bot.remove_command('help')
 # Track the last time someone ran the -play command globally
 last_play_time = 0
 
-# Simplified question bank mapping keys directly to options
+# Expanded question bank mapping keys directly to options
 QUIZ_QUESTIONS = [
     {"question": "What is the capital of France?", "choices": {"A": "London", "B": "Berlin", "C": "Paris", "D": "Madrid"}, "correct": "C"},
     {"question": "Which planet is known as the Red Planet?", "choices": {"A": "Earth", "B": "Mars", "C": "Jupiter", "D": "Venus"}, "correct": "B"},
@@ -45,7 +45,7 @@ QUIZ_QUESTIONS = [
     {"question": "What is the freezing point of water?", "choices": {"A": "0°C", "B": "10°C", "C": "50°C", "D": "100°C"}, "correct": "A"},
     {"question": "How many days are there in a normal year?", "choices": {"A": "360", "B": "364", "C": "365", "D": "366"}, "correct": "C"},
     {"question": "What is the color of an emerald?", "choices": {"A": "Blue", "B": "Red", "C": "Yellow", "D": "Green"}, "correct": "D"},
-    {"question": "Which fast food chain features a smiling clown?", "choices": {"A": "Burger King", "B": "Wendy's", "B": "McDonald's", "D": "Subway"}, "correct": "C"},
+    {"question": "Which fast food chain features a smiling clown?", "choices": {"A": "Burger King", "B": "Wendy's", "C": "McDonald's", "D": "Subway"}, "correct": "C"},
     {"question": "What is the hardest natural substance on Earth?", "choices": {"A": "Gold", "B": "Iron", "C": "Diamond", "D": "Stone"}, "correct": "C"},
     {"question": "Which country is home to the kangaroo?", "choices": {"A": "Canada", "B": "Australia", "C": "South Africa", "D": "Brazil"}, "correct": "B"},
     {"question": "How many letters are there in the English alphabet?", "choices": {"A": "24", "B": "25", "C": "26", "D": "27"}, "correct": "C"},
@@ -53,7 +53,27 @@ QUIZ_QUESTIONS = [
     {"question": "What is the largest country in the world by land size?", "choices": {"A": "Canada", "B": "USA", "C": "China", "D": "Russia"}, "correct": "D"},
     {"question": "What shape is a stop sign?", "choices": {"A": "Hexagon", "B": "Octagon", "C": "Triangle", "D": "Square"}, "correct": "B"},
     {"question": "Which gaseous element do humans need to breathe to survive?", "choices": {"A": "Nitrogen", "B": "Carbon Dioxide", "C": "Oxygen", "D": "Hydrogen"}, "correct": "C"},
-    {"question": "Who painted the famous 'Mona Lisa'?", "choices": {"A": "Vincent van Gogh", "B": "Leonardo da Vinci", "C": "Pablo Picasso", "D": "Claude Monet"}, "correct": "B"}
+    {"question": "Who painted the famous 'Mona Lisa'?", "choices": {"A": "Vincent van Gogh", "B": "Leonardo da Vinci", "C": "Pablo Picasso", "D": "Claude Monet"}, "correct": "B"},
+    {"question": "In Minecraft, what do you feed a wolf to tame it?", "choices": {"A": "Fish", "B": "Raw Porkchop", "C": "Bone", "D": "Apple"}, "correct": "C"},
+    {"question": "Which game popularised the phrase 'Where we droppin' boys?'", "choices": {"A": "PUBG Mobile", "B": "Fortnite", "C": "Apex Legends", "D": "Call of Duty"}, "correct": "B"},
+    {"question": "What is the name of the classic, default map in PUBG?", "choices": {"A": "Sanhok", "B": "Miramar", "C": "Livik", "D": "Erangel"}, "correct": "D"},
+    {"question": "Which company created the famous Mario character?", "choices": {"A": "SEGA", "B": "Nintendo", "C": "Sony", "D": "Microsoft"}, "correct": "B"},
+    {"question": "What is the default skin name for the male character in Minecraft?", "choices": {"A": "Steve", "B": "Alex", "C": "Jonesy", "D": "Creeper"}, "correct": "A"},
+    {"question": "How many infinity stones are there in the Marvel Cinematic Universe?", "choices": {"A": "4", "B": "5", "C": "6", "D": "7"}, "correct": "C"},
+    {"question": "Which mythical creature is known as a horse with a single horn?", "choices": {"A": "Pegasus", "B": "Unicorn", "C": "Griffin", "D": "Dragon"}, "correct": "B"},
+    {"question": "What is the main ingredient in a traditional Margherita pizza?", "choices": {"A": "Pepperoni", "B": "Mushrooms", "C": "Pineapple", "D": "Basil and Mozzarella"}, "correct": "D"},
+    {"question": "Which video game platform uses a digital store known as 'Steam'?", "choices": {"A": "PlayStation", "B": "PC", "C": "Xbox", "D": "Nintendo Switch"}, "correct": "B"},
+    {"question": "What color do you get when you mix blue and yellow paint together?", "choices": {"A": "Green", "B": "Purple", "C": "Orange", "D": "Brown"}, "correct": "A"},
+    {"question": "What is the maximum number of players in a standard battle royale match in PUBG Mobile?", "choices": {"A": "50", "B": "60", "C": "100", "D": "150"}, "correct": "C"},
+    {"question": "Which of these shotguns in PUBG Mobile can equip an AR magazine?", "choices": {"A": "S12K", "B": "S1897", "C": "S686", "D": "DBS"}, "correct": "A"},
+    {"question": "In Fortnite, what material has the highest health when fully built?", "choices": {"A": "Wood", "B": "Stone", "C": "Metal", "D": "Gold"}, "correct": "C"},
+    {"question": "What is the name of the smaller, fast-paced 2x2km snow and grass map in PUBG Mobile?", "choices": {"A": "Vikendi", "B": "Livik", "C": "Sanhok", "D": "Karakin"}, "correct": "B"},
+    {"question": "How many players are in a standard Fortnite squad?", "choices": {"A": "2", "B": "3", "C": "4", "D": "5"}, "correct": "C"},
+    {"question": "What is the chemical symbol for gold?", "choices": {"A": "Gd", "B": "Go", "C": "Ag", "D": "Au"}, "correct": "D"},
+    {"question": "Which popular streaming platform features a purple logo?", "choices": {"A": "YouTube", "B": "Twitch", "C": "Kick", "D": "TikTok"}, "correct": "B"},
+    {"question": "Which language is primarily used to code Discord bots using discord.py?", "choices": {"A": "JavaScript", "B": "Python", "C": "C++", "D": "HTML"}, "correct": "B"},
+    {"question": "In the movie 'The Lion King', what kind of animal is Pumbaa?", "choices": {"A": "Meerkat", "B": "Warthog", "C": "Baboon", "D": "Hyena"}, "correct": "B"},
+    {"question": "What is the name of the main villain in the Star Wars original trilogy?", "choices": {"A": "Darth Vader", "B": "Kylo Ren", "C": "Darth Maul", "D": "General Grievous"}, "correct": "A"}
 ]
 
 # Button View Class for the Quiz
@@ -65,7 +85,7 @@ class QuizView(discord.ui.View):
         self.message = None
 
         for label in ["A", "B", "C", "D"]:
-            button = discord.ui.Button(label=label, style=discord.ButtonStyle.blurple, custom_id=label)
+            button = discord.ui.Button(label=label, style=discord.ButtonStyle.grey, custom_id=label)
             button.callback = self.button_callback
             self.add_item(button)
 
@@ -179,7 +199,7 @@ async def play(ctx):
     embed = discord.Embed(
         title="🧠 Trivia Time!",
         description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Click your answer choice below within 15 seconds!*",
-        color=discord.Color.blue()
+        color=0xFFD700
     )
 
     view = QuizView(correct_answer=quiz['correct'], original_author=ctx.author)
@@ -194,10 +214,12 @@ async def on_message(message):
     content_lower = message.content.lower()
     clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
 
-    # Specific phrase check takes priority
+    # Specific phrase configurations
     if "starry hates me" in clean_content:
         await message.channel.send("No he doesn't")
-    # General mention check
+    elif "you hate me" in clean_content:
+        await message.channel.send("No I don't")
+    # General master mention check
     elif "starry" in clean_content:
         starry_responses = [
             "Who is it that dares cast their tongue upon my master?",
