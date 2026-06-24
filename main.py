@@ -2,10 +2,11 @@ import discord
 from discord.ext import commands
 import random
 import os
-import re  # Added to filter out custom emojis from sentences
+import re
+import asyncio  # Added to handle the quiz answer timer
 from flask import Flask
 from threading import Thread
-import time as time_module  # Handles the smart local time command
+import time as time_module
 
 # 1. Create a tiny background web server so Railway/Render stays happy
 app = Flask('')
@@ -25,8 +26,31 @@ def keep_alive():
 intents = discord.Intents.default()
 intents.message_content = True
 
-# --- PREFIX SET TO "-" HERE ---
 bot = commands.Bot(command_prefix="-", intents=intents)
+
+# Expanded question bank for the -play command (20 total questions)
+QUIZ_QUESTIONS = [
+    {"question": "What is the capital of France?", "choices": ["A) London", "B) Berlin", "C) Paris", "D) Madrid"], "correct": "C"},
+    {"question": "Which planet is known as the Red Planet?", "choices": ["A) Earth", "B) Mars", "C) Jupiter", "D) Venus"], "correct": "B"},
+    {"question": "What is the largest ocean on Earth?", "choices": ["A) Atlantic Ocean", "B) Indian Ocean", "C) Arctic Ocean", "D) Pacific Ocean"], "correct": "D"},
+    {"question": "How many colors are there in a rainbow?", "choices": ["A) 6", "B) 7", "C) 8", "D) 9"], "correct": "B"},
+    {"question": "What sweet food do bees make?", "choices": ["A) Sugar", "B) Honey", "C) Syrup", "D) Chocolate"], "correct": "B"},
+    {"question": "Which animal is known as the 'Ship of the Desert'?", "choices": ["A) Horse", "B) Camel", "C) Elephant", "D) Donkey"], "correct": "B"},
+    {"question": "How many legs does a spider have?", "choices": ["A) 6", "B) 8", "C) 10", "D) 12"], "correct": "B"},
+    {"question": "Which is the tallest animal on Earth?", "choices": ["A) Elephant", "B) Giraffe", "C) Dinosaur", "D) Ostrich"], "correct": "B"},
+    {"question": "What is the freezing point of water?", "choices": ["A) 0°C", "B) 10°C", "C) 50°C", "D) 100°C"], "correct": "A"},
+    {"question": "How many days are there in a normal year?", "choices": ["A) 360", "B) 364", "C) 365", "D) 366"], "correct": "C"},
+    {"question": "What is the color of an emerald?", "choices": ["A) Blue", "B) Red", "C) Yellow", "D) Green"], "correct": "D"},
+    {"question": "Which fast food chain features a smiling clown?", "choices": ["A) Burger King", "B) Wendy's", "C) McDonald's", "D) Subway"], "correct": "C"},
+    {"question": "What is the hardest natural substance on Earth?", "choices": ["A) Gold", "B) Iron", "C) Diamond", "D) Stone"], "correct": "C"},
+    {"question": "Which country is home to the kangaroo?", "choices": ["A) Canada", "B) Australia", "C) South Africa", "D) Brazil"], "correct": "B"},
+    {"question": "How many letters are there in the English alphabet?", "choices": ["A) 24", "B) 25", "C) 26", "D) 27"], "correct": "C"},
+    {"question": "Which fruit is traditionally given to teachers?", "choices": ["A) Banana", "B) Apple", "C) Orange", "D) Grape"], "correct": "B"},
+    {"question": "What is the largest country in the world by land size?", "choices": ["A) Canada", "B) USA", "C) China", "D) Russia"], "correct": "D"},
+    {"question": "What shape is a stop sign?", "choices": ["A) Hexagon", "B) Octagon", "C) Triangle", "D) Square"], "correct": "B"},
+    {"question": "Which gaseous element do humans need to breathe to survive?", "choices": ["A) Nitrogen", "B) Carbon Dioxide", "C) Oxygen", "D) Hydrogen"], "correct": "C"},
+    {"question": "Who painted the famous 'Mona Lisa'?", "choices": ["A) Vincent van Gogh", "B) Leonardo da Vinci", "C) Pablo Picasso", "D) Claude Monet"], "correct": "B"}
+]
 
 @bot.event
 async def on_ready():
@@ -46,35 +70,65 @@ async def eight_ball(ctx, *, question: str):
 async def roll(ctx, sides: int = 6):
     await ctx.send(f"🎲 You rolled a **{random.randint(1, sides)}**!")
 
-# --- NEW DYNAMIC TIME COMMAND ---
 @bot.command()
 async def time(ctx):
-    # Get the current universal Unix timestamp
     current_timestamp = int(time_module.time())
-    
-    # Sending it in this format tells Discord to translate it 
-    # to the local time of whoever is looking at their screen!
     await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
 
-# --- Custom Message Listener (Fixed for Emojis) ---
+# --- PLAYFUL QUIZ COMMAND WITH COOLDOWN ---
+@bot.command()
+@commands.cooldown(1, 15, commands.BucketType.global)
+async def play(ctx):
+    # Pick a random question from our expanded list
+    quiz = random.choice(QUIZ_QUESTIONS)
+    
+    choices_text = "\n".join(quiz["choices"])
+    
+    embed = discord.Embed(
+        title="🧠 Trivia Time!",
+        description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Type your answer (A, B, C, or D) in chat within 15 seconds!*",
+        color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed)
+
+    def check(m):
+        return m.channel == ctx.channel and not m.author.bot and m.content.upper() in ["A", "B", "C", "D"]
+
+    try:
+        msg = await bot.wait_for('message', check=check, timeout=15.0)
+        
+        if msg.content.upper() == quiz["correct"]:
+            await ctx.send(f"🎉 Correct, {msg.author.mention}! You nailed it!")
+        else:
+            await ctx.send(f"❌ Incorrect, {msg.author.mention}! The correct answer was **{quiz['correct']}**.")
+            
+    except asyncio.TimeoutError:
+        await ctx.send("⏰ Time's up! Nobody answered in time.")
+
+@play.error
+async def play_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        cooldown_embed = discord.Embed(
+            title="🤠 Whoa there!",
+            description="Hold your horses partner, let me cool down a bit.",
+            color=discord.Color.orange()
+        )
+        await ctx.send(embed=cooldown_embed)
+    else:
+        raise error
+
+# --- Custom Message Listener ---
 @bot.event
 async def on_message(message):
-    # Prevent the bot from replying to itself
     if message.author == bot.user:
         return
 
-    # Convert sentence to lowercase so it catches "Starry", "STARRY", etc.
     content_lower = message.content.lower()
-
-    # This completely strips out custom Discord emojis (<:name:id> or <a:name:id>)
-    # before checking the sentence text for the trigger word.
     clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
 
-    # Check if the word "starry" is anywhere in the sentence AFTER removing emojis
     if "starry" in clean_content:
         await message.channel.send("Who dares to speak about my master's name?")
 
-    # CRUCIAL: This allows your normal prefix commands (-ping, -time, etc.) to keep working!
     await bot.process_commands(message)
 
 # Start the web server right before launching the bot
