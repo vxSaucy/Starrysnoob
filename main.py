@@ -53,7 +53,7 @@ QUIZ_QUESTIONS = [
     {"question": "What is the largest country in the world by land size?", "choices": {"A": "Canada", "B": "USA", "C": "China", "D": "Russia"}, "correct": "D"},
     {"question": "What shape is a stop sign?", "choices": {"A": "Hexagon", "B": "Octagon", "C": "Triangle", "D": "Square"}, "correct": "B"},
     {"question": "Which gaseous element do humans need to breathe to survive?", "choices": {"A": "Nitrogen", "B": "Carbon Dioxide", "C": "Oxygen", "D": "Hydrogen"}, "correct": "C"},
-    {"who painted the famous 'Mona Lisa'?": "Vincent van Gogh", "choices": {"A": "Vincent van Gogh", "B": "Leonardo da Vinci", "C": "Pablo Picasso", "D": "Claude Monet"}, "correct": "B"},
+    {"question": "Who painted the famous 'Mona Lisa'?", "choices": {"A": "Vincent van Gogh", "B": "Leonardo da Vinci", "C": "Pablo Picasso", "D": "Claude Monet"}, "correct": "B"},
     {"question": "In Minecraft, what do you feed a wolf to tame it?", "choices": {"A": "Fish", "B": "Raw Porkchop", "C": "Bone", "D": "Apple"}, "correct": "C"},
     {"question": "Which game popularised the phrase 'Where we droppin' boys?'", "choices": {"A": "PUBG Mobile", "B": "Fortnite", "C": "Apex Legends", "D": "Call of Duty"}, "correct": "B"},
     {"question": "What is the name of the classic, default map in PUBG?", "choices": {"A": "Sanhok", "B": "Miramar", "C": "Livik", "D": "Erangel"}, "correct": "D"},
@@ -148,7 +148,7 @@ async def time(ctx):
     current_timestamp = int(time_module.time())
     await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
 
-# Custom Help Command Embed (Updated to include trigger words)
+# Custom Help Command Embed (With added spacing for clean look)
 @bot.command()
 async def help(ctx):
     embed = discord.Embed(
@@ -157,22 +157,22 @@ async def help(ctx):
         color=0xFFD700
     )
     
-    # Prefix Commands Section
+    # Prefix Commands Section (Double line breaks added)
     embed.add_field(name="⚙️ Prefix Commands", value=(
-        "`-help` ➜ Shows this helpful configuration list.\n"
-        "`-play` ➜ Launches a 4-option trivia mini-game (15s cooldown).\n"
-        "`-time` ➜ Displays the current time adjusted directly to your device.\n"
-        "`-ping` ➜ Tests bot responsiveness with latency calculation.\n"
-        "`-roll [sides]` ➜ Rolls a dice. Defaults to 6 sides.\n"
+        "`-help` ➜ Shows this helpful configuration list.\n\n"
+        "`-play` ➜ Launches a 4-option trivia mini-game (15s cooldown).\n\n"
+        "`-time` ➜ Displays the current time adjusted directly to your device.\n\n"
+        "`-ping` ➜ Tests bot responsiveness with latency calculation.\n\n"
+        "`-roll [sides]` ➜ Rolls a dice. Defaults to 6 sides.\n\n"
         "`-8ball [question]` ➜ Ask a question and receive a mystery prediction."
     ), inline=False)
     
-    # Chat Trigger Words Section
+    # Chat Trigger Words Section (Double line breaks added)
     embed.add_field(name="💬 Chat Trigger Words (No Prefix)", value=(
-        "🗣️ Mention **\"starry\"** ➜ Custom master protective responses.\n"
-        "❤️ Say **\"starry hates me\"** ➜ Bot replies: *\"No he doesn't\"*\n"
-        "🛡️ Say **\"you hate me\"** ➜ Bot replies: *\"No I don't\"*\n"
-        "✨ Say **\"cute\"** ➜ Bot replies with your custom creature emoji.\n"
+        "🗣️ Mention **\"starry\"** ➜ Custom master protective responses.\n\n"
+        "❤️ Say **\"starry hates me\"** ➜ Bot replies: *\"No he doesn't\"*\n\n"
+        "🛡️ Say **\"you hate me\"** ➜ Bot replies: *\"No I don't\"*\n\n"
+        "✨ Say **\"cute\"** ➜ Bot replies with your custom creature emoji.\n\n"
         "🌈 Say **\"gay\"** ➜ Bot replies: *\"Yes, indeed Starry is gay\"*"
     ), inline=False)
     
@@ -234,7 +234,7 @@ async def on_message(message):
         await message.channel.send("No I don't")
     elif "cute" in clean_content:
         # REPLACE THE STRING BELOW with your actual Discord emoji text code
-        await message.channel.send("<:Cutestarry:1519415152191995935>")
+        await message.channel.send("<:emojiname:123456789012345678>")
     elif "gay" in clean_content:
         await message.channel.send("Yes, indeed Starry is gay")
     # General master mention check
