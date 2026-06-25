@@ -31,7 +31,7 @@ bot.remove_command('help')
 
 # --- Global Databases & Configurations ---
 # ⚠️ REPLACE THIS WITH YOUR ACTUAL DISCORD ID (e.g., 123456789012345678)
-OWNER_ID = 711196330105503824 
+OWNER_ID = 711196330105503824  
 
 user_credits = {}       # Stores {user_id: credit_amount}
 earn_cooldowns = {}     # Stores {user_id: last_earn_timestamp}
@@ -544,6 +544,11 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
+    # If it is a prefix command, process it immediately and skip custom chat triggers
+    if message.content.startswith(bot.command_prefix):
+        await bot.process_commands(message)
+        return
+
     content_lower = message.content.lower()
     clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
 
@@ -563,8 +568,6 @@ async def on_message(message):
             "Who assumes the audacity to speak of my master?"
         ]
         await message.channel.send(random.choice(starry_responses))
-
-    await bot.process_commands(message)
 
 # Run Background Tasks and Launch Bot
 keep_alive()
