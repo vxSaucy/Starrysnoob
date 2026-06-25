@@ -78,9 +78,10 @@ QUIZ_QUESTIONS = [
 
 # Button View Class for the Quiz
 class QuizView(discord.ui.View):
-    def __init__(self, correct_answer, original_author):
+    def __init__(self, quiz_item, original_author):
         super().__init__(timeout=15.0)
-        self.correct_answer = correct_answer
+        self.quiz_item = quiz_item
+        self.correct_answer = quiz_item['correct']
         self.original_author = original_author
         self.message = None
 
@@ -95,25 +96,40 @@ class QuizView(discord.ui.View):
             return
 
         selected_choice = interaction.data["custom_id"]
+        correct_text = self.quiz_item['choices'][self.correct_answer]
         
+        # Color correct answer green, everything else red, and disable all
         for child in self.children:
-            child.disabled = True
+            if isinstance(child, discord.ui.Button):
+                child.disabled = True
+                if child.custom_id == self.correct_answer:
+                    child.style = discord.ButtonStyle.green
+                else:
+                    child.style = discord.ButtonStyle.danger
+                    
         await self.message.edit(view=self)
 
         if selected_choice == self.correct_answer:
-            await interaction.response.send_message(f"🎉 Correct, {interaction.user.mention}! You nailed it!")
+            await interaction.response.send_message(f"🎉 Correct, {interaction.user.mention}! You nailed it! The answer was **{self.correct_answer}) {correct_text}**.")
         else:
-            await interaction.response.send_message(f"❌ Incorrect, {interaction.user.mention}! The correct answer was choice **{self.correct_answer}**.")
+            await interaction.response.send_message(f"❌ Incorrect, {interaction.user.mention}! The correct answer was choice **{self.correct_answer}) {correct_text}**.")
         
         self.stop()
 
     async def on_timeout(self):
+        # Color correct answer green, everything else red on timeout
         for child in self.children:
-            child.disabled = True
+            if isinstance(child, discord.ui.Button):
+                child.disabled = True
+                if child.custom_id == self.correct_answer:
+                    child.style = discord.ButtonStyle.green
+                else:
+                    child.style = discord.ButtonStyle.danger
         if self.message:
             try:
                 await self.message.edit(view=self)
-                await self.message.channel.send("⏰ Time's up! Nobody answered in time.")
+                correct_text = self.quiz_item['choices'][self.correct_answer]
+                await self.message.channel.send(f"⏰ Time's up! Nobody answered in time. The correct answer was **{self.correct_answer}) {correct_text}**.")
             except discord.HTTPException:
                 pass
 
@@ -215,7 +231,7 @@ async def play(ctx):
         color=0xFFD700
     )
 
-    view = QuizView(correct_answer=quiz['correct'], original_author=ctx.author)
+    view = QuizView(quiz_item=quiz, original_author=ctx.author)
     view.message = await ctx.send(embed=embed, view=view)
 
 # Custom Message Listener
