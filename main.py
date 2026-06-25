@@ -29,8 +29,13 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="-", intents=intents)
 bot.remove_command('help')
 
-# Track the last time someone ran the -play command globally
-last_play_time = 0
+# --- Global Databases & Configurations ---
+# ⚠️ REPLACE THIS WITH YOUR ACTUAL DISCORD ID (e.g., 123456789012345678)
+OWNER_ID = YOUR_DISCORD_ID_HERE  
+
+user_credits = {}       # Stores {user_id: credit_amount}
+earn_cooldowns = {}     # Stores {user_id: last_earn_timestamp}
+last_play_time = 0      # Track the last time someone ran the -play command globally
 
 # Expanded question bank mapping keys directly to options
 QUIZ_QUESTIONS = [
@@ -59,7 +64,7 @@ QUIZ_QUESTIONS = [
     {"question": "What is the name of the classic, default map in PUBG?", "choices": {"A": "Sanhok", "B": "Miramar", "C": "Livik", "D": "Erangel"}, "correct": "D"},
     {"question": "Which company created the famous Mario character?", "choices": {"A": "SEGA", "B": "Nintendo", "C": "Sony", "D": "Microsoft"}, "correct": "B"},
     {"question": "What is the default skin name for the male character in Minecraft?", "choices": {"A": "Steve", "B": "Alex", "C": "Jonesy", "D": "Creeper"}, "correct": "A"},
-    {"question": "How many infinity stones are there in the Marvel Cinematic Universe?", "choices": {"A": "4", "B": "5", "C": "6", "D": "7"}, "correct": "C"},
+    {"question": "How many infinity stones are there in the Marvel Cinematic Universe?", "choices": {"A": "4", "B": "5", "C": "6", "7": "7"}, "correct": "C"},
     {"question": "Which mythical creature is known as a horse with a single horn?", "choices": {"A": "Pegasus", "B": "Unicorn", "C": "Griffin", "D": "Dragon"}, "correct": "B"},
     {"question": "What is the main ingredient in a traditional Margherita pizza?", "choices": {"A": "Pepperoni", "B": "Mushrooms", "C": "Pineapple", "D": "Basil and Mozzarella"}, "correct": "D"},
     {"question": "Which video game platform uses a digital store known as 'Steam'?", "choices": {"A": "PlayStation", "B": "PC", "C": "Xbox", "D": "Nintendo Switch"}, "correct": "B"},
@@ -76,7 +81,177 @@ QUIZ_QUESTIONS = [
     {"question": "What is the name of the main villain in the Star Wars original trilogy?", "choices": {"A": "Darth Vader", "B": "Kylo Ren", "C": "Darth Maul", "D": "General Grievous"}, "correct": "A"}
 ]
 
-# Button View Class for the Quiz
+# --- Helper Functions and Classes for Blackjack ---
+
+SUITS = ['♠️', '♥️', '♦️', '♣️']
+VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+
+def create_deck():
+    deck = [{'value': v, 'suit': s} for v in VALUES for s in SUITS]
+    random.shuffle(deck)
+    return deck
+
+def calculate_hand(hand):
+    total = 0
+    aces = 0
+    for card in hand:
+        if card['value'] in ['J', 'Q', 'K']:
+            total += 10
+        elif card['value'] == 'A':
+            aces += 1
+            total += 11
+        else:
+            total += int(card['value'])
+            
+    while total > 21 and aces:
+        total -= 10
+        aces -= 1
+    return total
+
+def format_hand(hand, hide_first=False):
+    if hide_first:
+        return f"🃏,  {hand[1]['value']}{hand[1]['suit']}"
+    return ",  ".join([f"{c['value']}{c['suit']}" for c in hand])
+
+class BlackjackView(discord.ui.View):
+    def __init__(self, author, bet):
+        super().__init__(timeout=60.0)
+        self.author = author
+        self.bet = bet
+        self.deck = create_deck()
+        self.player_hand = [self.deck.pop(), self.deck.pop()]
+        self.dealer_hand = [self.deck.pop(), self.deck.pop()]
+        self.doubled = False
+        self.message = None
+
+    def make_embed(self, title="🎰 Blackjack Table", description="Choose your action!", color=0x3498db, show_dealer=False):
+        p_total = calculate_hand(self.player_hand)
+        
+        if show_dealer:
+            d_total = calculate_hand(self.dealer_hand)
+            d_cards = format_hand(self.dealer_hand)
+        else:
+            d_total = "?"
+            d_cards = format_hand(self.dealer_hand, hide_first=True)
+
+        embed = discord.Embed(title=title, description=description, color=color)
+        embed.add_field(name=f"Dealer's Hand (Total: {d_total})", value=f"`{d_cards}`", inline=False)
+        embed.add_field(name=f"{self.author.display_name}'s Hand (Total: {p_total})", value=f"`{format_hand(self.player_hand)}`", inline=False)
+        
+        footer_text = f"💰 Active Bet: {self.bet} credits"
+        if self.doubled:
+            footer_text += " | Double Down active!"
+        embed.set_footer(text=footer_text)
+        return embed
+
+    async def check_initial_blackjack(self):
+        p_total = calculate_hand(self.player_hand)
+        d_total = calculate_hand(self.dealer_hand)
+        
+        if p_total == 21 and d_total == 21:
+            user_credits[self.author.id] += self.bet  # Return bet
+            await self.end_game("Push!", "Both you and the dealer got Blackjack! Bet returned.", 0x7f8c8d)
+            return True
+        elif p_total == 21:
+            payout = int(self.bet * 2.5) # Natural Blackjack pays 3:2
+            user_credits[self.author.id] += payout
+            await self.end_game("💥 Blackjack!", f"You hit Natural 21! You win `{payout}` credits!", 0x2ecc71)
+            return True
+        elif d_total == 21:
+            await self.end_game("❌ Dealer Blackjack!", "The dealer has Natural 21. You lost your bet!", 0xe74c3c)
+            return True
+        return False
+
+    async def end_game(self, status, reason, color):
+        for child in self.children:
+            child.disabled = True
+        embed = self.make_embed(title=status, description=reason, color=color, show_dealer=True)
+        await self.message.edit(embed=embed, view=self)
+        self.stop()
+
+    async def dealer_turn(self):
+        while calculate_hand(self.dealer_hand) < 17:
+            self.dealer_hand.append(self.deck.pop())
+            
+        p_score = calculate_hand(self.player_hand)
+        d_score = calculate_hand(self.dealer_hand)
+
+        if d_score > 21:
+            user_credits[self.author.id] += self.bet * 2
+            await self.end_game("🎉 Dealer Busted!", f"Dealer rolled over 21 with a `{d_score}`. You won `{self.bet * 2}` credits!", 0x2ecc71)
+        elif p_score > d_score:
+            user_credits[self.author.id] += self.bet * 2
+            await self.end_game("🏆 You Win!", f"Your `{p_score}` beat the dealer's `{d_score}`! Won `{self.bet * 2}` credits!", 0x2ecc71)
+        elif p_score < d_score:
+            await self.end_game("❌ You Lose!", f"The dealer's `{d_score}` beat your `{p_score}`. Lost your bet.", 0xe74c3c)
+        else:
+            user_credits[self.author.id] += self.bet
+            await self.end_game("🤝 Push!", f"It's a tie at `{p_score}`! Credits returned.", 0x7f8c8d)
+
+    @discord.ui.button(label="Hit", style=discord.ButtonStyle.grey, custom_id="hit")
+    async def hit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.author:
+            await interaction.response.send_message("This isn't your card table, partner! 🤠", ephemeral=True)
+            return
+
+        self.player_hand.append(self.deck.pop())
+        p_score = calculate_hand(self.player_hand)
+
+        # Double down is disallowed after hitting once
+        for child in self.children:
+            if child.custom_id == "double":
+                child.disabled = True
+
+        if p_score > 21:
+            await interaction.response.defer()
+            await self.end_game("💥 Busted!", f"You went over 21 with a total of `{p_score}`. House wins!", 0xe74c3c)
+        else:
+            await interaction.response.edit_message(embed=self.make_embed(), view=self)
+
+    @discord.ui.button(label="Stand", style=discord.ButtonStyle.blurple, custom_id="stand")
+    async def stand_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.author:
+            await interaction.response.send_message("This isn't your card table, partner! 🤠", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        await self.dealer_turn()
+
+    @discord.ui.button(label="Double", style=discord.ButtonStyle.success, custom_id="double")
+    async def double_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.author:
+            await interaction.response.send_message("This isn't your card table, partner! 🤠", ephemeral=True)
+            return
+
+        current_bal = user_credits.get(self.author.id, 0)
+        if current_bal < self.bet:
+            await interaction.response.send_message("You don't have enough credits left in your balance to double down!", ephemeral=True)
+            return
+
+        # Deduct the second matching bet layout
+        user_credits[self.author.id] -= self.bet
+        self.bet *= 2
+        self.doubled = True
+        
+        self.player_hand.append(self.deck.pop())
+        p_score = calculate_hand(self.player_hand)
+
+        await interaction.response.defer()
+        if p_score > 21:
+            await self.end_game("💥 Busted on Double!", f"You went over 21 with a total of `{p_score}`. House wins!", 0xe74c3c)
+        else:
+            await self.dealer_turn()
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(content="⏰ Game abandoned! Table cleared due to inactivity. Credits lost.", view=self)
+            except discord.HTTPException:
+                pass
+
+# --- Button View Class for the Quiz ---
 class QuizView(discord.ui.View):
     def __init__(self, quiz_item, original_author):
         super().__init__(timeout=15.0)
@@ -98,7 +273,6 @@ class QuizView(discord.ui.View):
         selected_choice = interaction.data["custom_id"]
         correct_text = self.quiz_item['choices'][self.correct_answer]
         
-        # Color correct answer green, everything else red, and disable all
         for child in self.children:
             if isinstance(child, discord.ui.Button):
                 child.disabled = True
@@ -117,7 +291,6 @@ class QuizView(discord.ui.View):
         self.stop()
 
     async def on_timeout(self):
-        # Color correct answer green, everything else red on timeout
         for child in self.children:
             if isinstance(child, discord.ui.Button):
                 child.disabled = True
@@ -136,8 +309,6 @@ class QuizView(discord.ui.View):
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
-    
-    # Rich Presence configuration (Listening Status)
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.listening, 
@@ -164,7 +335,7 @@ async def time(ctx):
     current_timestamp = int(time_module.time())
     await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
 
-# Custom Help Command Embed (With added spacing for clean look)
+# Custom Help Command Embed
 @bot.command()
 async def help(ctx):
     embed = discord.Embed(
@@ -173,9 +344,11 @@ async def help(ctx):
         color=0xFFD700
     )
     
-    # Prefix Commands Section (Double line breaks added)
     embed.add_field(name="⚙️ Prefix Commands", value=(
         "`-help` ➜ Shows this helpful configuration list.\n\n"
+        "`-earn` ➜ Claims 5 free system credits once every 12 hours.\n\n"
+        "`-bal` ➜ Displays your current overall arcade credit balances.\n\n"
+        "`-21 [amount / all]` ➜ Bet credits in a classic match of Blackjack.\n\n"
         "`-play` ➜ Launches a 4-option trivia mini-game (15s cooldown).\n\n"
         "`-time` ➜ Displays the current time adjusted directly to your device.\n\n"
         "`-ping` ➜ Tests bot responsiveness with latency calculation.\n\n"
@@ -183,7 +356,6 @@ async def help(ctx):
         "`-8ball [question]` ➜ Ask a question and receive a mystery prediction."
     ), inline=False)
     
-    # Chat Trigger Words Section (Double line breaks added)
     embed.add_field(name="💬 Chat Trigger Words (No Prefix)", value=(
         "🗣️ Mention **\"starry\"** ➜ Custom master protective responses.\n\n"
         "❤️ Say **\"starry hates me\"** ➜ Bot replies: *\"No he doesn't\"*\n\n"
@@ -215,7 +387,6 @@ async def play(ctx):
         return
 
     last_play_time = current_time
-
     quiz = random.choice(QUIZ_QUESTIONS)
     
     choices_text = (
@@ -234,6 +405,98 @@ async def play(ctx):
     view = QuizView(quiz_item=quiz, original_author=ctx.author)
     view.message = await ctx.send(embed=embed, view=view)
 
+# --- Credit System Functional Commands ---
+
+@bot.command(name="earn")
+async def earn_credits(ctx):
+    user_id = ctx.author.id
+    current_time = time_module.time()
+    cooldown_seconds = 12 * 3600  # 12 hours converted to seconds
+    
+    if user_id in earn_cooldowns:
+        elapsed = current_time - earn_cooldowns[user_id]
+        if elapsed < cooldown_seconds:
+            remaining = cooldown_seconds - elapsed
+            hours = int(remaining // 3600)
+            minutes = int((remaining % 3600) // 60)
+            await ctx.send(f"⏳ **Cooldown active!** You can claim free credits again in **{hours}h {minutes}m**.")
+            return
+
+    earn_cooldowns[user_id] = current_time
+    user_credits[user_id] = user_credits.get(user_id, 0) + 5
+    await ctx.send(f"💰 {ctx.author.mention}, you've claimed **5 free credits**! Your balance is now `{user_credits[user_id]}` credits.")
+
+@bot.command(name="bal")
+async def balance(ctx):
+    bal = user_credits.get(ctx.author.id, 0)
+    await ctx.send(f"💳 {ctx.author.mention}, your current total wallet holds: `{bal}` credits.")
+
+# Blackjack Command with Betting Extensions
+@bot.command(name="21")
+async def blackjack(ctx, bet_input: str = None):
+    user_id = ctx.author.id
+    current_bal = user_credits.get(user_id, 0)
+
+    if bet_input is None:
+        await ctx.send("❌ Please provide a wager amount! Usage: `-21 [number]` or `-21 all`")
+        return
+
+    # Parse standard values vs 'all' string arguments
+    if bet_input.lower() == "all":
+        bet = current_bal
+    else:
+        try:
+            bet = int(bet_input)
+        except ValueError:
+            await ctx.send("❌ Invalid bet amount format. Please input a positive full number or `all`.")
+            return
+
+    if bet <= 0:
+        await ctx.send("❌ Your wager amount must be higher than 0 credits!")
+        return
+
+    if current_bal < bet:
+        await ctx.send(f"❌ Transaction declined! You do not have enough credits. Current balance: `{current_bal}`")
+        return
+
+    # Deduct the bet amount upfront
+    user_credits[user_id] -= bet
+
+    view = BlackjackView(ctx.author, bet)
+    view.message = await ctx.send(embed=view.make_embed(), view=view)
+    
+    # Check if someone lands a natural Blackjack off the starting cards
+    await view.check_initial_blackjack()
+
+# --- Administrative Owner Commands ---
+
+@bot.command(name="addcredits")
+async def add_credits(ctx, member: discord.Member = None, amount: int = None):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("⛔ Authorization Denied. Only the bot master can handle direct bank overrides.")
+        return
+
+    if member is None or amount is None or amount <= 0:
+        await ctx.send("ℹ️ Usage configuration standard format: `-addcredits @User [positive number]`")
+        return
+
+    user_credits[member.id] = user_credits.get(member.id, 0) + amount
+    await ctx.send(f"✅ System Update: Added `{amount}` credits to {member.mention}'s vault. New Balance: `{user_credits[member.id]}`")
+
+@bot.command(name="removecredits")
+async def remove_credits(ctx, member: discord.Member = None, amount: int = None):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("⛔ Authorization Denied. Only the bot master can handle direct bank overrides.")
+        return
+
+    if member is None or amount is None or amount <= 0:
+        await ctx.send("ℹ️ Usage configuration standard format: `-removecredits @User [positive number]`")
+        return
+
+    current_bal = user_credits.get(member.id, 0)
+    user_credits[member.id] = max(0, current_bal - amount)
+    await ctx.send(f"🛑 System Update: Stripped `{amount}` credits from {member.mention}'s vault. New Balance: `{user_credits[member.id]}`")
+
 # Custom Message Listener
 @bot.event
 async def on_message(message):
@@ -243,17 +506,14 @@ async def on_message(message):
     content_lower = message.content.lower()
     clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
 
-    # Trigger configurations
     if "starry hates me" in clean_content:
         await message.channel.send("No he doesn't")
     elif "you hate me" in clean_content:
         await message.channel.send("No I don't")
     elif "cute" in clean_content:
-        # REPLACE THE STRING BELOW with your actual Discord emoji text code
         await message.channel.send("<:Cutestarry:1519456531173871686>")
     elif "gay" in clean_content:
         await message.channel.send("Yes, indeed Starry is gay")
-    # General master mention check
     elif "starry" in clean_content:
         starry_responses = [
             "Who is it that dares cast their tongue upon my master?",
