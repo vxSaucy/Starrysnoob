@@ -31,7 +31,7 @@ bot.remove_command('help')
 
 # --- Global Databases & Configurations ---
 # ⚠️ REPLACE THIS WITH YOUR ACTUAL DISCORD ID (e.g., 123456789012345678)
-OWNER_ID = YOUR_DISCORD_ID_HERE  
+OWNER_ID = 711196330105503824 
 
 user_credits = {}       # Stores {user_id: credit_amount}
 earn_cooldowns = {}     # Stores {user_id: last_earn_timestamp}
