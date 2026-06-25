@@ -4,25 +4,10 @@ import random
 import os
 import re
 import asyncio
-from flask import Flask
-from threading import Thread
 import time as time_module
+import json  # Added for data preservation
 
-# 1. Background web server for hosting stability
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "Bot is alive!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
-
-# 2. Discord Bot Setup
+# --- Discord Bot Setup ---
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -30,15 +15,50 @@ bot = commands.Bot(command_prefix="-", intents=intents)
 bot.remove_command('help')
 
 # --- Global Databases & Configurations ---
-# ⚠️ REPLACE THIS WITH YOUR ACTUAL DISCORD ID (e.g., 123456789012345678)
+# ⚠️ REPLACE THIS WITH YOUR ACTUAL DISCORD ID
 OWNER_ID = 711196330105503824  
 
-user_credits = {}       # Stores {user_id: credit_amount}
-earn_cooldowns = {}     # Stores {user_id: last_earn_timestamp}
-last_play_time = 0      # Track the last time someone ran the -play command globally
+DATA_FILE = "user_data.json"
+user_credits = {}       # Stores {user_id_string: credit_amount}
+earn_cooldowns = {}     # Stores {user_id_string: last_earn_timestamp}
 
-# Deduplication cache to prevent zombie containers from double-posting
-processed_messages = {}
+last_play_time = 0      # Track the last time someone ran the -play command globally
+processed_messages = {} # Deduplication cache
+
+# --- Helper Functions for Data Preservation ---
+def load_data():
+    """Loads saved credits and cooldowns from the local JSON file safely."""
+    global user_credits, earn_cooldowns
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, 'r') as f:
+                data = json.load(f)
+                # Convert string keys back to integers for discord IDs
+                user_credits = {int(k): v for k, v in data.get("credits", {}).items()}
+                earn_cooldowns = {int(k): v for k, v in data.get("cooldowns", {}).items()}
+                print("Successfully loaded saved user balances.")
+        except Exception as e:
+            print(f"Error loading data file: {e}")
+            user_credits = {}
+            earn_cooldowns = {}
+    else:
+        user_credits = {}
+        earn_cooldowns = {}
+
+def save_data():
+    """Saves current credits and cooldowns directly to a local text file."""
+    try:
+        data = {
+            "credits": {str(k): v for k, v in user_credits.items()},
+            "cooldowns": {str(k): v for k, v in earn_cooldowns.items()}
+        }
+        with open(DATA_FILE, 'w') as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print(f"Error saving data file: {e}")
+
+# Load existing user data immediately when starting up
+load_data()
 
 # Expanded question bank mapping keys directly to options
 QUIZ_QUESTIONS = [
@@ -78,14 +98,13 @@ QUIZ_QUESTIONS = [
     {"question": "What is the name of the smaller, fast-paced 2x2km snow and grass map in PUBG Mobile?", "choices": {"A": "Vikendi", "B": "Livik", "C": "Sanhok", "D": "Karakin"}, "correct": "B"},
     {"question": "How many players are in a standard Fortnite squad?", "choices": {"A": "2", "B": "3", "C": "4", "D": "5"}, "correct": "C"},
     {"question": "What is the chemical symbol for gold?", "choices": {"A": "Gd", "B": "Go", "C": "Ag", "D": "Au"}, "correct": "D"},
-    {"question": "Which popular streaming platform features a purple logo?", "choices": {"A": "YouTube", "B": "Twitch", "C": "Kick", "D": "TikTok"}, "correct": "B"},
+    {"choice": "YouTube", "choices": {"A": "YouTube", "B": "Twitch", "C": "Kick", "D": "TikTok"}, "correct": "B", "question": "Which popular streaming platform features a purple logo?"},
     {"question": "Which language is primarily used to code Discord bots using discord.py?", "choices": {"A": "JavaScript", "B": "Python", "C": "C++", "D": "HTML"}, "correct": "B"},
     {"question": "In the movie 'The Lion King', what kind of animal is Pumbaa?", "choices": {"A": "Meerkat", "B": "Warthog", "C": "Baboon", "D": "Hyena"}, "correct": "B"},
     {"question": "What is the name of the main villain in the Star Wars original trilogy?", "choices": {"A": "Darth Vader", "B": "Kylo Ren", "C": "Darth Maul", "D": "General Grievous"}, "correct": "A"}
 ]
 
 # --- Helper Functions and Classes for Blackjack ---
-
 SUITS = ['♠️', '♥️', '♦️', '♣️']
 VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 
@@ -129,7 +148,6 @@ class BlackjackView(discord.ui.View):
 
     def make_embed(self, title="🎰 Blackjack Table", description="Choose your action!", color=0x3498db, show_dealer=False):
         p_total = calculate_hand(self.player_hand)
-        
         if show_dealer:
             d_total = calculate_hand(self.dealer_hand)
             d_cards = format_hand(self.dealer_hand)
@@ -152,15 +170,18 @@ class BlackjackView(discord.ui.View):
         d_total = calculate_hand(self.dealer_hand)
         
         if p_total == 21 and d_total == 21:
-            user_credits[self.author.id] += self.bet  # Return bet
+            user_credits[self.author.id] += self.bet
+            save_data()
             await self.end_game("Push!", "Both you and the dealer got Blackjack! Bet returned.", 0x7f8c8d)
             return True
         elif p_total == 21:
-            payout = int(self.bet * 2.5) # Natural Blackjack pays 3:2
+            payout = int(self.bet * 2.5)
             user_credits[self.author.id] += payout
+            save_data()
             await self.end_game("💥 Blackjack!", f"You hit Natural 21! You win `{payout}` credits!", 0x2ecc71)
             return True
         elif d_total == 21:
+            save_data()
             await self.end_game("❌ Dealer Blackjack!", "The dealer has Natural 21. You lost your bet!", 0xe74c3c)
             return True
         return False
@@ -181,14 +202,18 @@ class BlackjackView(discord.ui.View):
 
         if d_score > 21:
             user_credits[self.author.id] += self.bet * 2
+            save_data()
             await self.end_game("🎉 Dealer Busted!", f"Dealer rolled over 21 with a `{d_score}`. You won `{self.bet * 2}` credits!", 0x2ecc71)
         elif p_score > d_score:
             user_credits[self.author.id] += self.bet * 2
+            save_data()
             await self.end_game("🏆 You Win!", f"Your `{p_score}` beat the dealer's `{d_score}`! Won `{self.bet * 2}` credits!", 0x2ecc71)
         elif p_score < d_score:
+            save_data()
             await self.end_game("❌ You Lose!", f"The dealer's `{d_score}` beat your `{p_score}`. Lost your bet.", 0xe74c3c)
         else:
             user_credits[self.author.id] += self.bet
+            save_data()
             await self.end_game("🤝 Push!", f"It's a tie at `{p_score}`! Credits returned.", 0x7f8c8d)
 
     @discord.ui.button(label="Hit", style=discord.ButtonStyle.grey, custom_id="hit")
@@ -200,7 +225,6 @@ class BlackjackView(discord.ui.View):
         self.player_hand.append(self.deck.pop())
         p_score = calculate_hand(self.player_hand)
 
-        # Double down is disallowed after hitting once
         for child in self.children:
             if child.custom_id == "double":
                 child.disabled = True
@@ -216,7 +240,6 @@ class BlackjackView(discord.ui.View):
         if interaction.user != self.author:
             await interaction.response.send_message("This isn't your card table, partner! 🤠", ephemeral=True)
             return
-
         await interaction.response.defer()
         await self.dealer_turn()
 
@@ -231,7 +254,6 @@ class BlackjackView(discord.ui.View):
             await interaction.response.send_message("You don't have enough credits left in your balance to double down!", ephemeral=True)
             return
 
-        # Deduct the second matching bet layout
         user_credits[self.author.id] -= self.bet
         self.bet *= 2
         self.doubled = True
@@ -290,7 +312,6 @@ class QuizView(discord.ui.View):
             await interaction.response.send_message(f"🎉 Correct, {interaction.user.mention}! You nailed it! The answer was **{self.correct_answer}) {correct_text}**.")
         else:
             await interaction.response.send_message(f"❌ Incorrect, {interaction.user.mention}! The correct answer was choice **{self.correct_answer}) {correct_text}**.")
-        
         self.stop()
 
     async def on_timeout(self):
@@ -313,10 +334,7 @@ class QuizView(discord.ui.View):
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
     await bot.change_presence(
-        activity=discord.Activity(
-            type=discord.ActivityType.listening, 
-            name="prefix commands (-help) 🎧"
-        )
+        activity=discord.Activity(type=discord.ActivityType.listening, name="prefix commands (-help) 🎧")
     )
 
 # Standard Prefix Commands
@@ -338,7 +356,6 @@ async def time(ctx):
     current_timestamp = int(time_module.time())
     await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
 
-# Custom Help Command Embed
 @bot.command()
 async def help(ctx):
     embed = discord.Embed(
@@ -346,7 +363,6 @@ async def help(ctx):
         description="Here is a full layout of my configuration! Active prefixes use `-`, while text triggers respond dynamically in regular chat.",
         color=0xFFD700
     )
-    
     embed.add_field(name="⚙️ Prefix Commands", value=(
         "`-help` ➜ Shows this helpful configuration list.\n\n"
         "`-earn` ➜ Claims 5 free system credits once every 12 hours.\n\n"
@@ -359,7 +375,6 @@ async def help(ctx):
         "`-roll [sides]` ➜ Rolls a dice. Defaults to 6 sides.\n\n"
         "`-8ball [question]` ➜ Ask a question and receive a mystery prediction."
     ), inline=False)
-    
     embed.add_field(name="💬 Chat Trigger Words (No Prefix)", value=(
         "🗣️ Mention **\"starry\"** ➜ Custom master protective responses.\n\n"
         "❤️ Say **\"starry hates me\"** ➜ Bot replies: *\"No he doesn't\"*\n\n"
@@ -367,56 +382,38 @@ async def help(ctx):
         "✨ Say **\"cute\"** ➜ Bot replies with your custom creature emoji.\n\n"
         "🌈 Say **\"gay\"** ➜ Bot replies: *\"Yes, indeed Starry is gay\"*"
     ), inline=False)
-    
     if bot.user.avatar:
         embed.set_footer(text="Built with ❤️ for Starry's server", icon_url=bot.user.avatar.url)
     else:
         embed.set_footer(text="Built with ❤️ for Starry's server")
-        
     await ctx.send(embed=embed)
 
-# Quiz Command
 @bot.command()
 async def play(ctx):
     global last_play_time
     current_time = time_module.time()
-    
     if current_time - last_play_time < 15:
         cooldown_embed = discord.Embed(
-            title="🤠 Whoa there!",
-            description="Hold your horses partner, let me cool down a bit.",
-            color=discord.Color.orange()
+            title="🤠 Whoa there!", description="Hold your horses partner, let me cool down a bit.", color=discord.Color.orange()
         )
         await ctx.send(embed=cooldown_embed)
         return
 
     last_play_time = current_time
     quiz = random.choice(QUIZ_QUESTIONS)
-    
-    choices_text = (
-        f"**A)** {quiz['choices']['A']}\n"
-        f"**B)** {quiz['choices']['B']}\n"
-        f"**C)** {quiz['choices']['C']}\n"
-        f"**D)** {quiz['choices']['D']}"
-    )
-
+    choices_text = f"**A)** {quiz['choices']['A']}\n**B)** {quiz['choices']['B']}\n**C)** {quiz['choices']['C']}\n**D)** {quiz['choices']['D']}"
     embed = discord.Embed(
-        title="🧠 Trivia Time!",
-        description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Click your answer choice below within 15 seconds!*",
-        color=0xFFD700
+        title="🧠 Trivia Time!", description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Click your answer choice below within 15 seconds!*", color=0xFFD700
     )
-
     view = QuizView(quiz_item=quiz, original_author=ctx.author)
     view.message = await ctx.send(embed=embed, view=view)
 
 # --- Credit System Functional Commands ---
-
 @bot.command(name="earn")
 async def earn_credits(ctx):
     user_id = ctx.author.id
     current_time = time_module.time()
-    cooldown_seconds = 12 * 3600  # 12 hours converted to seconds
-    
+    cooldown_seconds = 12 * 3600
     if user_id in earn_cooldowns:
         elapsed = current_time - earn_cooldowns[user_id]
         if elapsed < cooldown_seconds:
@@ -428,6 +425,7 @@ async def earn_credits(ctx):
 
     earn_cooldowns[user_id] = current_time
     user_credits[user_id] = user_credits.get(user_id, 0) + 5
+    save_data()  # Save changes to file
     await ctx.send(f"💰 {ctx.author.mention}, you've claimed **5 free credits**! Your balance is now `{user_credits[user_id]}` credits.")
 
 @bot.command(name="bal")
@@ -435,7 +433,6 @@ async def balance(ctx):
     bal = user_credits.get(ctx.author.id, 0)
     await ctx.send(f"💳 {ctx.author.mention}, your current total wallet holds: `{bal}` credits.")
 
-# Blackjack Command with Betting Extensions
 @bot.command(name="21")
 async def blackjack(ctx, bet_input: str = None):
     user_id = ctx.author.id
@@ -445,7 +442,6 @@ async def blackjack(ctx, bet_input: str = None):
         await ctx.send("❌ Please provide a wager amount! Usage: `-21 [number]` or `-21 all`")
         return
 
-    # Parse standard values vs 'all' string arguments
     if bet_input.lower() == "all":
         bet = current_bal
     else:
@@ -463,48 +459,30 @@ async def blackjack(ctx, bet_input: str = None):
         await ctx.send(f"❌ Transaction declined! You do not have enough credits. Current balance: `{current_bal}`")
         return
 
-    # Deduct the bet amount upfront
     user_credits[user_id] -= bet
-
+    save_data()  # Save wager deduction
     view = BlackjackView(ctx.author, bet)
     view.message = await ctx.send(embed=view.make_embed(), view=view)
-    
-    # Check if someone lands a natural Blackjack off the starting cards
     await view.check_initial_blackjack()
 
-# Leaderboard Command
 @bot.command(name="lb")
 async def leaderboard(ctx):
     if not user_credits:
         await ctx.send("🏆 The leaderboard is completely empty right now! Run `-earn` to get started.")
         return
 
-    # Filter out users who have 0 or fewer credits to keep it clean, then sort from high to low
-    sorted_credits = sorted(
-        [(uid, amt) for uid, amt in user_credits.items() if amt > 0], 
-        key=lambda item: item[1], 
-        reverse=True
-    )
-
+    sorted_credits = sorted([(uid, amt) for uid, amt in user_credits.items() if amt > 0], key=lambda item: item[1], reverse=True)
     if not sorted_credits:
         await ctx.send("🏆 No active balances recorded yet!")
         return
 
-    embed = discord.Embed(
-        title="🏆 Server Credit Leaderboard",
-        color=0xFFD700,
-        description="Here are the top high-rollers on the server right now!"
-    )
-
+    embed = discord.Embed(title="🏆 Server Credit Leaderboard", color=0xFFD700, description="Here are the top high-rollers on the server right now!")
     leaderboard_text = ""
-    # Look up usernames safely across cache or fallback API fetches up to top 10 positions
     for rank, (u_id, amount) in enumerate(sorted_credits[:10], start=1):
         user = bot.get_user(u_id)
         if not user:
-            try:
-                user = await bot.fetch_user(u_id)
-            except discord.HTTPException:
-                user = None
+            try: user = await bot.fetch_user(u_id)
+            except discord.HTTPException: user = None
         
         name = user.display_name if user else f"Unknown User ({u_id})"
         leaderboard_text += f"**#{rank}** {name} ➜ `{amount}` credits\n"
@@ -513,18 +491,16 @@ async def leaderboard(ctx):
     await ctx.send(embed=embed)
 
 # --- Administrative Owner Commands ---
-
 @bot.command(name="addcredits")
 async def add_credits(ctx, member: discord.Member = None, amount: int = None):
     if ctx.author.id != OWNER_ID:
         await ctx.send("⛔ Authorization Denied. Only the bot master can handle direct bank overrides.")
         return
-
     if member is None or amount is None or amount <= 0:
         await ctx.send("ℹ️ Usage configuration standard format: `-addcredits @User [positive number]`")
         return
-
     user_credits[member.id] = user_credits.get(member.id, 0) + amount
+    save_data()
     await ctx.send(f"✅ System Update: Added `{amount}` credits to {member.mention}'s vault. New Balance: `{user_credits[member.id]}`")
 
 @bot.command(name="removecredits")
@@ -532,13 +508,12 @@ async def remove_credits(ctx, member: discord.Member = None, amount: int = None)
     if ctx.author.id != OWNER_ID:
         await ctx.send("⛔ Authorization Denied. Only the bot master can handle direct bank overrides.")
         return
-
     if member is None or amount is None or amount <= 0:
         await ctx.send("ℹ️ Usage configuration standard format: `-removecredits @User [positive number]`")
         return
-
     current_bal = user_credits.get(member.id, 0)
     user_credits[member.id] = max(0, current_bal - amount)
+    save_data()
     await ctx.send(f"🛑 System Update: Stripped `{amount}` credits from {member.mention}'s vault. New Balance: `{user_credits[member.id]}`")
 
 # Custom Message Listener
@@ -548,20 +523,14 @@ async def on_message(message):
         return
 
     current_time = time_module.time()
-
-    # Deduplication routine logic: Check if message ID has been handled in the last 4 seconds
     if message.id in processed_messages:
         return
         
-    # Store message ID with current timestamp
     processed_messages[message.id] = current_time
-
-    # Clean stale message IDs out of cache memory asynchronously (keeps cache clean)
     stale_keys = [k for k, t in processed_messages.items() if current_time - t > 4.0]
     for k in stale_keys:
         del processed_messages[k]
 
-    # If it is a prefix command, process it immediately and skip custom chat triggers
     if message.content.startswith(bot.command_prefix):
         await bot.process_commands(message)
         return
@@ -585,9 +554,6 @@ async def on_message(message):
             "Who assumes the audacity to speak of my master?"
         ]
         await message.channel.send(random.choice(starry_responses))
-
-# Run Background Tasks and Launch Bot
-keep_alive()
 
 token = os.getenv("DISCORD_TOKEN")
 bot.run(token)
