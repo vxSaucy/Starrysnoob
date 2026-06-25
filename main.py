@@ -234,7 +234,7 @@ async def on_message(message):
         await message.channel.send("No I don't")
     elif "cute" in clean_content:
         # REPLACE THE STRING BELOW with your actual Discord emoji text code
-        await message.channel.send("<:emojiname:123456789012345678>")
+        await message.channel.send("<:Cutestarry:1519456531173871686>")
     elif "gay" in clean_content:
         await message.channel.send("Yes, indeed Starry is gay")
     # General master mention check
