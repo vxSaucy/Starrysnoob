@@ -25,16 +25,14 @@ def keep_alive():
 # 2. Discord Bot Setup
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # Required for changing nicknames
 
 bot = commands.Bot(command_prefix="-", intents=intents)
 bot.remove_command('help')
 
-# Track AFK state
-afk_users = {}
+# Track the last time someone ran the -play command globally
 last_play_time = 0
 
-# Expanded question bank
+# Expanded question bank mapping keys directly to options
 QUIZ_QUESTIONS = [
     {"question": "What is the capital of France?", "choices": {"A": "London", "B": "Berlin", "C": "Paris", "D": "Madrid"}, "correct": "C"},
     {"question": "Which planet is known as the Red Planet?", "choices": {"A": "Earth", "B": "Mars", "C": "Jupiter", "D": "Venus"}, "correct": "B"},
@@ -78,12 +76,14 @@ QUIZ_QUESTIONS = [
     {"question": "What is the name of the main villain in the Star Wars original trilogy?", "choices": {"A": "Darth Vader", "B": "Kylo Ren", "C": "Darth Maul", "D": "General Grievous"}, "correct": "A"}
 ]
 
+# Button View Class for the Quiz
 class QuizView(discord.ui.View):
     def __init__(self, correct_answer, original_author):
         super().__init__(timeout=15.0)
         self.correct_answer = correct_answer
         self.original_author = original_author
         self.message = None
+
         for label in ["A", "B", "C", "D"]:
             button = discord.ui.Button(label=label, style=discord.ButtonStyle.grey, custom_id=label)
             button.callback = self.button_callback
@@ -93,44 +93,46 @@ class QuizView(discord.ui.View):
         if interaction.user != self.original_author:
             await interaction.response.send_message("This isn't your game session, partner! 🤠", ephemeral=True)
             return
+
         selected_choice = interaction.data["custom_id"]
-        for child in self.children: child.disabled = True
+        
+        for child in self.children:
+            child.disabled = True
         await self.message.edit(view=self)
+
         if selected_choice == self.correct_answer:
             await interaction.response.send_message(f"🎉 Correct, {interaction.user.mention}! You nailed it!")
         else:
             await interaction.response.send_message(f"❌ Incorrect, {interaction.user.mention}! The correct answer was choice **{self.correct_answer}**.")
+        
         self.stop()
 
     async def on_timeout(self):
-        for child in self.children: child.disabled = True
+        for child in self.children:
+            child.disabled = True
         if self.message:
             try:
                 await self.message.edit(view=self)
                 await self.message.channel.send("⏰ Time's up! Nobody answered in time.")
-            except discord.HTTPException: pass
+            except discord.HTTPException:
+                pass
 
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
+    
+    # Rich Presence configuration (Listening Status)
     await bot.change_presence(
-        status=discord.Status.dnd, 
-        activity=discord.Activity(type=discord.ActivityType.listening, name="prefix commands (-help) 🎧")
+        activity=discord.Activity(
+            type=discord.ActivityType.listening, 
+            name="prefix commands (-help) 🎧"
+        )
     )
 
-# --- Commands ---
-
+# Standard Prefix Commands
 @bot.command()
-async def afk(ctx, *, reason: str = "AFK"):
-    afk_users[ctx.author.id] = {"original_name": ctx.author.display_name, "reason": reason}
-    try:
-        await ctx.author.edit(nick=f'¡AFK "{reason}!"')
-        await ctx.send(f"✅ You are now AFK: **{reason}**")
-    except discord.Forbidden:
-        await ctx.send("❌ I don't have permission to change your nickname!")
-
-@bot.command()
-async def ping(ctx): await ctx.send("🏓 Pong!")
+async def ping(ctx):
+    await ctx.send("🏓 Pong!")
 
 @bot.command(name="8ball")
 async def eight_ball(ctx, *, question: str):
@@ -138,68 +140,117 @@ async def eight_ball(ctx, *, question: str):
     await ctx.send(f"🔮 **Question:** {question}\n**Answer:** {random.choice(responses)}")
 
 @bot.command()
-async def roll(ctx, sides: int = 6): await ctx.send(f"🎲 You rolled a **{random.randint(1, sides)}**!")
+async def roll(ctx, sides: int = 6):
+    await ctx.send(f"🎲 You rolled a **{random.randint(1, sides)}**!")
 
 @bot.command()
-async def time(ctx): await ctx.send(f"⏰ **Your Local Time:** <t:{int(time_module.time())}:F>")
+async def time(ctx):
+    current_timestamp = int(time_module.time())
+    await ctx.send(f"⏰ **Your Local Time:** <t:{current_timestamp}:F>")
 
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def delete(ctx, amount):
-    def is_not_pinned(m): return not m.pinned
-    if amount.lower() == 'all':
-        deleted = await ctx.channel.purge(limit=1000, check=is_not_pinned)
-        await ctx.send(f"🧹 Nuked {len(deleted)-1} messages!", delete_after=5)
-    else:
-        try:
-            num = int(amount)
-            deleted = await ctx.channel.purge(limit=num + 1, check=is_not_pinned)
-            await ctx.send(f"🧹 Cleaned up {len(deleted)-1} messages.", delete_after=5)
-        except ValueError: await ctx.send("❌ Please provide a valid number.")
-
+# Custom Help Command Embed (With added spacing for clean look)
 @bot.command()
 async def help(ctx):
-    embed = discord.Embed(title="🤖 Starry's N00b — Command Menu", description="Active prefixes use `-`.", color=0xFFD700)
-    embed.add_field(name="⚙️ Commands", value="`-help`, `-play`, `-time`, `-ping`, `-roll`, `-8ball`, `-delete`, `-afk`")
+    embed = discord.Embed(
+        title="🤖 Starry's N00b — Command Menu",
+        description="Here is a full layout of my configuration! Active prefixes use `-`, while text triggers respond dynamically in regular chat.",
+        color=0xFFD700
+    )
+    
+    # Prefix Commands Section (Double line breaks added)
+    embed.add_field(name="⚙️ Prefix Commands", value=(
+        "`-help` ➜ Shows this helpful configuration list.\n\n"
+        "`-play` ➜ Launches a 4-option trivia mini-game (15s cooldown).\n\n"
+        "`-time` ➜ Displays the current time adjusted directly to your device.\n\n"
+        "`-ping` ➜ Tests bot responsiveness with latency calculation.\n\n"
+        "`-roll [sides]` ➜ Rolls a dice. Defaults to 6 sides.\n\n"
+        "`-8ball [question]` ➜ Ask a question and receive a mystery prediction."
+    ), inline=False)
+    
+    # Chat Trigger Words Section (Double line breaks added)
+    embed.add_field(name="💬 Chat Trigger Words (No Prefix)", value=(
+        "🗣️ Mention **\"starry\"** ➜ Custom master protective responses.\n\n"
+        "❤️ Say **\"starry hates me\"** ➜ Bot replies: *\"No he doesn't\"*\n\n"
+        "🛡️ Say **\"you hate me\"** ➜ Bot replies: *\"No I don't\"*\n\n"
+        "✨ Say **\"cute\"** ➜ Bot replies with your custom creature emoji.\n\n"
+        "🌈 Say **\"gay\"** ➜ Bot replies: *\"Yes, indeed Starry is gay\"*"
+    ), inline=False)
+    
+    if bot.user.avatar:
+        embed.set_footer(text="Built with ❤️ for Starry's server", icon_url=bot.user.avatar.url)
+    else:
+        embed.set_footer(text="Built with ❤️ for Starry's server")
+        
     await ctx.send(embed=embed)
 
+# Quiz Command
 @bot.command()
 async def play(ctx):
     global last_play_time
-    if time_module.time() - last_play_time < 15:
-        await ctx.send("🤠 Hold your horses, let me cool down.")
+    current_time = time_module.time()
+    
+    if current_time - last_play_time < 15:
+        cooldown_embed = discord.Embed(
+            title="🤠 Whoa there!",
+            description="Hold your horses partner, let me cool down a bit.",
+            color=discord.Color.orange()
+        )
+        await ctx.send(embed=cooldown_embed)
         return
-    last_play_time = time_module.time()
+
+    last_play_time = current_time
+
     quiz = random.choice(QUIZ_QUESTIONS)
+    
+    choices_text = (
+        f"**A)** {quiz['choices']['A']}\n"
+        f"**B)** {quiz['choices']['B']}\n"
+        f"**C)** {quiz['choices']['C']}\n"
+        f"**D)** {quiz['choices']['D']}"
+    )
+
+    embed = discord.Embed(
+        title="🧠 Trivia Time!",
+        description=f"**{quiz['question']}**\n\n{choices_text}\n\n*Click your answer choice below within 15 seconds!*",
+        color=0xFFD700
+    )
+
     view = QuizView(correct_answer=quiz['correct'], original_author=ctx.author)
-    view.message = await ctx.send(embed=discord.Embed(title="🧠 Trivia Time!", description=f"**{quiz['question']}**", color=0xFFD700), view=view)
+    view.message = await ctx.send(embed=embed, view=view)
 
-# --- Event Listeners ---
-
+# Custom Message Listener
 @bot.event
 async def on_message(message):
-    if message.author == bot.user: return
+    if message.author == bot.user:
+        return
 
-    # AFK detection
-    if message.mentions:
-        for user in message.mentions:
-            if user.id in afk_users:
-                await message.channel.send(f"⚠️ {user.display_name} is AFK: **{afk_users[user.id]['reason']}**")
+    content_lower = message.content.lower()
+    clean_content = re.sub(r'<a?:[a-zA-Z0-9_]+:[0-9]+>', '', content_lower)
 
-    # Remove AFK on message
-    if message.author.id in afk_users:
-        data = afk_users.pop(message.author.id)
-        try:
-            await message.author.edit(nick=data["original_name"])
-            await message.channel.send(f"👋 Welcome back, {message.author.mention}!", delete_after=5)
-        except: pass
+    # Trigger configurations
+    if "starry hates me" in clean_content:
+        await message.channel.send("No he doesn't")
+    elif "you hate me" in clean_content:
+        await message.channel.send("No I don't")
+    elif "cute" in clean_content:
+        # REPLACE THE STRING BELOW with your actual Discord emoji text code
+        await message.channel.send("<:emojiname:123456789012345678>")
+    elif "gay" in clean_content:
+        await message.channel.send("Yes, indeed Starry is gay")
+    # General master mention check
+    elif "starry" in clean_content:
+        starry_responses = [
+            "Who is it that dares cast their tongue upon my master?",
+            "Who amongst you possesses the effrontery to utter my master’s name?",
+            "Who dares breathe a word concerning my liege?",
+            "Who assumes the audacity to speak of my master?"
+        ]
+        await message.channel.send(random.choice(starry_responses))
 
-    if message.content.startswith("-"): await bot.process_commands(message)
-    content = message.content.lower()
-    if "starry hates me" in content: await message.channel.send("No he doesn't")
-    elif "gay" in content: await message.channel.send("Yes, indeed Starry is gay")
-    elif "starry" in content: await message.channel.send("Who dares speak my master's name?")
+    await bot.process_commands(message)
 
+# Run Background Tasks and Launch Bot
 keep_alive()
+
 token = os.getenv("DISCORD_TOKEN")
 bot.run(token)
