@@ -31,11 +31,14 @@ bot.remove_command('help')
 
 # --- Global Databases & Configurations ---
 # ⚠️ REPLACE THIS WITH YOUR ACTUAL DISCORD ID (e.g., 123456789012345678)
-OWNER_ID = 711196330105503824  
+OWNER_ID = YOUR_DISCORD_ID_HERE  
 
 user_credits = {}       # Stores {user_id: credit_amount}
 earn_cooldowns = {}     # Stores {user_id: last_earn_timestamp}
 last_play_time = 0      # Track the last time someone ran the -play command globally
+
+# Deduplication cache to prevent zombie containers from double-posting
+processed_messages = {}
 
 # Expanded question bank mapping keys directly to options
 QUIZ_QUESTIONS = [
@@ -543,6 +546,20 @@ async def remove_credits(ctx, member: discord.Member = None, amount: int = None)
 async def on_message(message):
     if message.author == bot.user:
         return
+
+    current_time = time_module.time()
+
+    # Deduplication routine logic: Check if message ID has been handled in the last 4 seconds
+    if message.id in processed_messages:
+        return
+        
+    # Store message ID with current timestamp
+    processed_messages[message.id] = current_time
+
+    # Clean stale message IDs out of cache memory asynchronously (keeps cache clean)
+    stale_keys = [k for k, t in processed_messages.items() if current_time - t > 4.0]
+    for k in stale_keys:
+        del processed_messages[k]
 
     # If it is a prefix command, process it immediately and skip custom chat triggers
     if message.content.startswith(bot.command_prefix):
