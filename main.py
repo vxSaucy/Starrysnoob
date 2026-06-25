@@ -31,7 +31,7 @@ bot.remove_command('help')
 
 # --- Global Databases & Configurations ---
 # ⚠️ REPLACE THIS WITH YOUR ACTUAL DISCORD ID (e.g., 123456789012345678)
-OWNER_ID = 711196330105503824 
+OWNER_ID = YOUR_DISCORD_ID_HERE  
 
 user_credits = {}       # Stores {user_id: credit_amount}
 earn_cooldowns = {}     # Stores {user_id: last_earn_timestamp}
@@ -64,7 +64,7 @@ QUIZ_QUESTIONS = [
     {"question": "What is the name of the classic, default map in PUBG?", "choices": {"A": "Sanhok", "B": "Miramar", "C": "Livik", "D": "Erangel"}, "correct": "D"},
     {"question": "Which company created the famous Mario character?", "choices": {"A": "SEGA", "B": "Nintendo", "C": "Sony", "D": "Microsoft"}, "correct": "B"},
     {"question": "What is the default skin name for the male character in Minecraft?", "choices": {"A": "Steve", "B": "Alex", "C": "Jonesy", "D": "Creeper"}, "correct": "A"},
-    {"question": "How many infinity stones are there in the Marvel Cinematic Universe?", "choices": {"A": "4", "B": "5", "C": "6", "7": "7"}, "correct": "C"},
+    {"question": "How many infinity stones are there in the Marvel Cinematic Universe?", "choices": {"A": "4", "B": "5", "C": "6", "D": "7"}, "correct": "C"},
     {"question": "Which mythical creature is known as a horse with a single horn?", "choices": {"A": "Pegasus", "B": "Unicorn", "C": "Griffin", "D": "Dragon"}, "correct": "B"},
     {"question": "What is the main ingredient in a traditional Margherita pizza?", "choices": {"A": "Pepperoni", "B": "Mushrooms", "C": "Pineapple", "D": "Basil and Mozzarella"}, "correct": "D"},
     {"question": "Which video game platform uses a digital store known as 'Steam'?", "choices": {"A": "PlayStation", "B": "PC", "C": "Xbox", "D": "Nintendo Switch"}, "correct": "B"},
@@ -348,6 +348,7 @@ async def help(ctx):
         "`-help` ➜ Shows this helpful configuration list.\n\n"
         "`-earn` ➜ Claims 5 free system credits once every 12 hours.\n\n"
         "`-bal` ➜ Displays your current overall arcade credit balances.\n\n"
+        "`-lb` ➜ Shows the server credit leaderboard from high to low.\n\n"
         "`-21 [amount / all]` ➜ Bet credits in a classic match of Blackjack.\n\n"
         "`-play` ➜ Launches a 4-option trivia mini-game (15s cooldown).\n\n"
         "`-time` ➜ Displays the current time adjusted directly to your device.\n\n"
@@ -467,6 +468,46 @@ async def blackjack(ctx, bet_input: str = None):
     
     # Check if someone lands a natural Blackjack off the starting cards
     await view.check_initial_blackjack()
+
+# Leaderboard Command
+@bot.command(name="lb")
+async def leaderboard(ctx):
+    if not user_credits:
+        await ctx.send("🏆 The leaderboard is completely empty right now! Run `-earn` to get started.")
+        return
+
+    # Filter out users who have 0 or fewer credits to keep it clean, then sort from high to low
+    sorted_credits = sorted(
+        [(uid, amt) for uid, amt in user_credits.items() if amt > 0], 
+        key=lambda item: item[1], 
+        reverse=True
+    )
+
+    if not sorted_credits:
+        await ctx.send("🏆 No active balances recorded yet!")
+        return
+
+    embed = discord.Embed(
+        title="🏆 Server Credit Leaderboard",
+        color=0xFFD700,
+        description="Here are the top high-rollers on the server right now!"
+    )
+
+    leaderboard_text = ""
+    # Look up usernames safely across cache or fallback API fetches up to top 10 positions
+    for rank, (u_id, amount) in enumerate(sorted_credits[:10], start=1):
+        user = bot.get_user(u_id)
+        if not user:
+            try:
+                user = await bot.fetch_user(u_id)
+            except discord.HTTPException:
+                user = None
+        
+        name = user.display_name if user else f"Unknown User ({u_id})"
+        leaderboard_text += f"**#{rank}** {name} ➜ `{amount}` credits\n"
+
+    embed.add_field(name="Top Players", value=leaderboard_text, inline=False)
+    await ctx.send(embed=embed)
 
 # --- Administrative Owner Commands ---
 
